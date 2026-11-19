@@ -81,7 +81,3 @@ PGDATABASE=enaho
 - **Datos:** Zenodo, DOI `10.5281/zenodo.XXXXXXX` (completar al publicar).
 - **Código:** este repositorio; versión archivada en Zenodo con DOI `10.5281/zenodo.YYYYYYY`.
 - **Fuente original:** INEI, Encuesta Nacional de Hogares 2014–2025.
-
-## Licencia
-
-Código: MIT. Datos procesados: CC BY 4.0 (citar también al INEI como fuente original).
