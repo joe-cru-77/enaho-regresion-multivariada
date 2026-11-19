@@ -53,7 +53,7 @@ source("R/instalar_paquetes.R")
 
 Datos, con una de estas dos opciones:
 
-- **Opción A (rápida):** descargar `base_modelo.csv.gz` desde Zenodo (DOI: `10.5281/zenodo.XXXXXXX`) y copiarlo en `datos/processed/`.
+- **Opción A (rápida):** descargar `base_modelo.csv.gz` desde Zenodo (DOI: `10.5281/zenodo.24377138`) y copiarlo en `datos/processed/`.
 - **Opción B (desde cero):** descargar del portal de microdatos del INEI los módulos 200, 300 y 500 de 2014 a 2025 (CSV) y copiar las carpetas de cada año en `datos/raw/`.
 
 Ejecutar el pipeline completo:
@@ -78,6 +78,6 @@ PGDATABASE=enaho
 
 ## Disponibilidad de datos
 
-- **Datos:** Zenodo, DOI `10.5281/zenodo.XXXXXXX` (completar al publicar).
-- **Código:** este repositorio; versión archivada en Zenodo con DOI `10.5281/zenodo.YYYYYYY`.
+- **Datos:** Zenodo, DOI `10.5281/zenodo.24377138` (completar al publicar).
+- **Código:** este repositorio; versión archivada en Zenodo con DOI `10.5281/zenodo.24377368`.
 - **Fuente original:** INEI, Encuesta Nacional de Hogares 2014–2025.
