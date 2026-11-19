@@ -1,0 +1,3 @@
+objetivo,mejor_modelo,rmse_prueba
+y1_ln_ingreso_mensual,random_forest,0.577335606791549
+y2_horas_semanales,random_forest,14.528793119611707

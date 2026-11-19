@@ -1,0 +1,47 @@
+---
+title: "9. Disponibilidad de datos y código"
+description: "Dónde y cómo se publican los datos (Zenodo, DOI) y el código (GitHub)"
+---
+
+## Disponibilidad de datos (*Data availability*)
+
+> **Texto para el artículo** (va después de la sección de Resultados; completar los enlaces una vez publicados):
+>
+> Los microdatos originales provienen de la Encuesta Nacional de Hogares (ENAHO) 2014–2025 del Instituto Nacional de Estadística e Informática (INEI), módulos 200, 300 y 500, disponibles públicamente en el portal de microdatos del INEI (https://proyectos.inei.gob.pe/microdatos/). La base procesada utilizada en el análisis (`base_modelo.csv.gz`, 288 241 asalariados, 2 variables objetivo y 19 predictoras) y su diccionario de variables están disponibles en Zenodo: **https://doi.org/10.5281/zenodo.XXXXXXX**. El código del pipeline (integración, limpieza, modelado y validación) está disponible en GitHub: **https://github.com/joe-cru-77/enaho-regresion-multivariada**, archivado con el DOI **https://doi.org/10.5281/zenodo.YYYYYYY**.
+
+## ¿Qué va en cada plataforma?
+
+| Plataforma | Qué se publica | Para qué |
+|---|---|---|
+| **GitHub** | Solo el **código**: `.qmd`, `R/`, `_quarto.yml`, `renv.lock`, README | Control de versiones del código y publicación del sitio web (GitHub Pages) |
+| **Zenodo** (primera opción) | Los **datos**: `base_modelo.csv.gz` y `diccionario_base_modelo.csv` | Asignar un **DOI** permanente para citar los datos en el artículo |
+| **Mendeley Data** (segunda opción) | Los mismos datos | También asigna DOI |
+| **Dataverse** (repositorio institucional) | Los mismos datos | Iniciativa de código abierto que usan varias universidades para alojar datos de investigación |
+
+Los datos **no** se suben a GitHub. Los archivos grandes no se manejan bien en Git, y GitHub no asigna un DOI a los datos.
+
+## Pasos para publicar los datos en Zenodo
+
+1. Crear una cuenta en <https://zenodo.org> (se puede entrar con la cuenta de GitHub).
+2. **New upload** → subir:
+   - `datos/processed/base_modelo.csv.gz`
+   - `datos/processed/diccionario_base_modelo.csv`
+3. Completar el formulario:
+   - **Resource type:** Dataset.
+   - **Title:** «Base de modelado ENAHO 2014–2025: ingreso y horas de los asalariados del Perú».
+   - **Creators:** los integrantes del grupo, con su afiliación (Universidad Nacional del Altiplano – Puno).
+   - **Description:** fuente (INEI, ENAHO módulos 200, 300 y 500), población (asalariados ocupados), número de filas y variables, y enlace al repositorio de GitHub.
+   - **License:** Creative Commons Attribution 4.0 (CC BY 4.0).
+   - **Related works:** el enlace al repositorio de GitHub (*is supplemented by*).
+4. **Publish** → Zenodo asigna el DOI (`10.5281/zenodo.XXXXXXX`).
+5. Copiar el DOI en esta página, en el `README.md`, en `CITATION.cff` y en la sección de disponibilidad de datos del artículo.
+
+## Pasos para archivar el código con DOI (GitHub + Zenodo)
+
+1. En Zenodo: **Account → GitHub** y activar el repositorio `enaho-regresion-multivariada`.
+2. En GitHub: crear una **Release** (por ejemplo, `v1.0.0`).
+3. Zenodo archiva automáticamente esa versión del código y le asigna su propio DOI.
+
+## Cómo citar
+
+Ver el archivo `CITATION.cff` del repositorio (GitHub muestra el botón *Cite this repository*).

@@ -1,0 +1,85 @@
+---
+title: "8. Despliegue en un sistema de gestión de datos"
+description: "Carga de la base del modelo y de los resultados en PostgreSQL"
+---
+
+```{r}
+#| label: setup
+#| include: false
+source(here::here("R", "00_config.R"))
+library(DBI)
+```
+
+Para que otros sistemas (un dashboard en línea, una API o un análisis en SQL) puedan usar los resultados, el pipeline los publica en un **sistema de gestión de bases de datos**: PostgreSQL.
+
+## 8.1 Credenciales fuera del código
+
+La contraseña **nunca** se escribe en el código, porque el código se sube a GitHub. Se guarda en el archivo `.Renviron` de la carpeta del proyecto, que está en `.gitignore`:
+
+```
+PGHOST=localhost
+PGPORT=5432
+PGUSER=postgres
+PGPASSWORD=tu_contraseña
+PGDATABASE=enaho
+```
+
+Si no existe `PGPASSWORD`, esta etapa se omite y el resto del pipeline funciona igual.
+
+```{r}
+#| label: conexion
+desplegar <- nzchar(Sys.getenv("PGPASSWORD"))
+if (desplegar) {
+  con <- dbConnect(RPostgres::Postgres(),
+                   host     = Sys.getenv("PGHOST", "localhost"),
+                   port     = as.integer(Sys.getenv("PGPORT", "5432")),
+                   user     = Sys.getenv("PGUSER", "postgres"),
+                   password = Sys.getenv("PGPASSWORD"),
+                   dbname   = Sys.getenv("PGDATABASE", "enaho"),
+                   bigint   = "numeric")
+  cat("Conectado a PostgreSQL:", Sys.getenv("PGDATABASE", "enaho"), "\n")
+} else {
+  cat("No hay credenciales de PostgreSQL (PGPASSWORD): se omite el despliegue.\n")
+}
+```
+
+## 8.2 Tablas que se publican
+
+| Tabla | Contenido |
+|---|---|
+| `modelo_base` | Base del modelo: 2 variables objetivo y 19 predictoras |
+| `modelo_metricas_prueba` | RMSE, R² y MAE de cada modelo en el conjunto de prueba |
+| `modelo_metricas_vc` | Métricas de la validación cruzada |
+| `modelo_importancia` | Importancia de variables del Random Forest |
+| `modelo_coeficientes` | Coeficientes de la regresión multivariada |
+
+```{r}
+#| label: desplegar
+if (desplegar) {
+  leer <- function(n) read_csv(file.path(rutas$tablas, paste0(n, ".csv")), show_col_types = FALSE)
+  tablas <- list(
+    modelo_base             = read_csv(archivo_base_modelo, show_col_types = FALSE),
+    modelo_metricas_prueba  = leer("metricas_prueba"),
+    modelo_metricas_vc      = leer("metricas_validacion_cruzada"),
+    modelo_importancia      = leer("importancia_random_forest"),
+    modelo_coeficientes     = leer("coeficientes_multivariado"))
+
+  iwalk(tablas, function(df, nombre) {
+    dbWriteTable(con, nombre, as.data.frame(df), overwrite = TRUE)
+  })
+  dbExecute(con, "ALTER TABLE modelo_base ADD PRIMARY KEY (anio, conglome, vivienda, hogar, codperso)")
+
+  verificacion <- map_dfr(names(tablas), function(n) {
+    tibble(tabla = n,
+           filas_en_R = nrow(tablas[[n]]),
+           filas_en_PostgreSQL = dbGetQuery(con, paste("SELECT COUNT(*) AS n FROM", n))$n)
+  })
+  dbDisconnect(con)
+  guardar_tabla(verificacion, "verificacion_despliegue")
+  verificacion
+}
+```
+
+## 8.3 Siguiente paso: despliegue en la nube
+
+La misma etapa sirve para un servidor PostgreSQL en la nube (por ejemplo, el de la universidad o un servicio gestionado): solo cambian los valores de `PGHOST`, `PGUSER` y `PGPASSWORD` en `.Renviron`. El código no se modifica.

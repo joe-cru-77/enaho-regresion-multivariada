@@ -1,0 +1,524 @@
+[
+  {
+    "objectID": "08-despliegue.html",
+    "href": "08-despliegue.html",
+    "title": "8. Despliegue en un sistema de gestión de datos",
+    "section": "",
+    "text": "Para que otros sistemas (un dashboard en línea, una API o un análisis en SQL) puedan usar los resultados, el pipeline los publica en un sistema de gestión de bases de datos: PostgreSQL.",
+    "crumbs": [
+      "MLOps y datos abiertos",
+      "8. Despliegue"
+    ]
+  },
+  {
+    "objectID": "08-despliegue.html#credenciales-fuera-del-código",
+    "href": "08-despliegue.html#credenciales-fuera-del-código",
+    "title": "8. Despliegue en un sistema de gestión de datos",
+    "section": "8.1 Credenciales fuera del código",
+    "text": "8.1 Credenciales fuera del código\nLa contraseña nunca se escribe en el código, porque el código se sube a GitHub. Se guarda en el archivo .Renviron de la carpeta del proyecto, que está en .gitignore:\nPGHOST=localhost\nPGPORT=5432\nPGUSER=postgres\nPGPASSWORD=tu_contraseña\nPGDATABASE=enaho\nSi no existe PGPASSWORD, esta etapa se omite y el resto del pipeline funciona igual.\n\n\nCódigo\ndesplegar &lt;- nzchar(Sys.getenv(\"PGPASSWORD\"))\nif (desplegar) {\n  con &lt;- dbConnect(RPostgres::Postgres(),\n                   host     = Sys.getenv(\"PGHOST\", \"localhost\"),\n                   port     = as.integer(Sys.getenv(\"PGPORT\", \"5432\")),\n                   user     = Sys.getenv(\"PGUSER\", \"postgres\"),\n                   password = Sys.getenv(\"PGPASSWORD\"),\n                   dbname   = Sys.getenv(\"PGDATABASE\", \"enaho\"),\n                   bigint   = \"numeric\")\n  cat(\"Conectado a PostgreSQL:\", Sys.getenv(\"PGDATABASE\", \"enaho\"), \"\\n\")\n} else {\n  cat(\"No hay credenciales de PostgreSQL (PGPASSWORD): se omite el despliegue.\\n\")\n}\n\n\nNo hay credenciales de PostgreSQL (PGPASSWORD): se omite el despliegue.",
+    "crumbs": [
+      "MLOps y datos abiertos",
+      "8. Despliegue"
+    ]
+  },
+  {
+    "objectID": "08-despliegue.html#tablas-que-se-publican",
+    "href": "08-despliegue.html#tablas-que-se-publican",
+    "title": "8. Despliegue en un sistema de gestión de datos",
+    "section": "8.2 Tablas que se publican",
+    "text": "8.2 Tablas que se publican\n\n\n\n\n\n\n\nTabla\nContenido\n\n\n\n\nmodelo_base\nBase del modelo: 2 variables objetivo y 19 predictoras\n\n\nmodelo_metricas_prueba\nRMSE, R² y MAE de cada modelo en el conjunto de prueba\n\n\nmodelo_metricas_vc\nMétricas de la validación cruzada\n\n\nmodelo_importancia\nImportancia de variables del Random Forest\n\n\nmodelo_coeficientes\nCoeficientes de la regresión multivariada\n\n\n\n\n\nCódigo\nif (desplegar) {\n  leer &lt;- function(n) read_csv(file.path(rutas$tablas, paste0(n, \".csv\")), show_col_types = FALSE)\n  tablas &lt;- list(\n    modelo_base             = read_csv(archivo_base_modelo, show_col_types = FALSE),\n    modelo_metricas_prueba  = leer(\"metricas_prueba\"),\n    modelo_metricas_vc      = leer(\"metricas_validacion_cruzada\"),\n    modelo_importancia      = leer(\"importancia_random_forest\"),\n    modelo_coeficientes     = leer(\"coeficientes_multivariado\"))\n\n  iwalk(tablas, function(df, nombre) {\n    dbWriteTable(con, nombre, as.data.frame(df), overwrite = TRUE)\n  })\n  dbExecute(con, \"ALTER TABLE modelo_base ADD PRIMARY KEY (anio, conglome, vivienda, hogar, codperso)\")\n\n  verificacion &lt;- map_dfr(names(tablas), function(n) {\n    tibble(tabla = n,\n           filas_en_R = nrow(tablas[[n]]),\n           filas_en_PostgreSQL = dbGetQuery(con, paste(\"SELECT COUNT(*) AS n FROM\", n))$n)\n  })\n  dbDisconnect(con)\n  guardar_tabla(verificacion, \"verificacion_despliegue\")\n  verificacion\n}",
+    "crumbs": [
+      "MLOps y datos abiertos",
+      "8. Despliegue"
+    ]
+  },
+  {
+    "objectID": "08-despliegue.html#siguiente-paso-despliegue-en-la-nube",
+    "href": "08-despliegue.html#siguiente-paso-despliegue-en-la-nube",
+    "title": "8. Despliegue en un sistema de gestión de datos",
+    "section": "8.3 Siguiente paso: despliegue en la nube",
+    "text": "8.3 Siguiente paso: despliegue en la nube\nLa misma etapa sirve para un servidor PostgreSQL en la nube (por ejemplo, el de la universidad o un servicio gestionado): solo cambian los valores de PGHOST, PGUSER y PGPASSWORD en .Renviron. El código no se modifica.",
+    "crumbs": [
+      "MLOps y datos abiertos",
+      "8. Despliegue"
+    ]
+  },
+  {
+    "objectID": "06-interpretabilidad.html",
+    "href": "06-interpretabilidad.html",
+    "title": "6. Interpretabilidad",
+    "section": "",
+    "text": "Un modelo predictivo no solo debe predecir bien: también debe poder explicarse. Aquí se interpretan los resultados de dos formas:",
+    "crumbs": [
+      "Modelos predictivos",
+      "6. Interpretabilidad"
+    ]
+  },
+  {
+    "objectID": "06-interpretabilidad.html#efecto-conjunto-de-cada-predictora-prueba-de-pillai",
+    "href": "06-interpretabilidad.html#efecto-conjunto-de-cada-predictora-prueba-de-pillai",
+    "title": "6. Interpretabilidad",
+    "section": "6.1 Efecto conjunto de cada predictora (prueba de Pillai)",
+    "text": "6.1 Efecto conjunto de cada predictora (prueba de Pillai)\nLa prueba de Pillai evalúa si una predictora afecta a la vez al ingreso y a las horas. Un valor de Pillai más alto indica un efecto conjunto más fuerte.\n\n\nCódigo\npillai %&gt;%\n  arrange(desc(Pillai)) %&gt;%\n  transmute(predictora = termino, Pillai = round(Pillai, 4),\n            F_aprox = round(`approx F`, 1), p_valor = signif(`Pr(&gt;F)`, 3))\n\n\n\n\n\n\npredictora\nPillai\nF_aprox\np_valor\n\n\n\n\nanios_educ\n0.3501\n62082.9\n0\n\n\nedad2\n0.1544\n21048.8\n0\n\n\nedad\n0.1259\n16604.2\n0\n\n\nrama\n0.1197\n978.7\n0\n\n\ntam_empresa\n0.0997\n2420.1\n0\n\n\nsector_publico\n0.0706\n8754.8\n0\n\n\nfactor(anio)\n0.0656\n711.1\n0\n\n\ngrupo_ocupacional\n0.0579\n764.2\n0\n\n\ncat_ocupacional\n0.0524\n3100.4\n0\n\n\ncontrato\n0.0480\n1416.5\n0\n\n\nmujer\n0.0412\n4948.7\n0\n\n\nurbano\n0.0354\n4229.6\n0\n\n\nregion\n0.0160\n621.1\n0\n\n\nafiliado_pensiones\n0.0113\n1314.7\n0\n\n\njefe_hogar\n0.0087\n1010.6\n0\n\n\ncasado_conviviente\n0.0074\n854.2\n0\n\n\nlengua_nativa\n0.0055\n638.8\n0\n\n\netnia\n0.0051\n146.2\n0\n\n\ntam_hogar\n0.0018\n206.8\n0",
+    "crumbs": [
+      "Modelos predictivos",
+      "6. Interpretabilidad"
+    ]
+  },
+  {
+    "objectID": "06-interpretabilidad.html#coeficientes-principales",
+    "href": "06-interpretabilidad.html#coeficientes-principales",
+    "title": "6. Interpretabilidad",
+    "section": "6.2 Coeficientes principales",
+    "text": "6.2 Coeficientes principales\nEn Y1 (logaritmo del ingreso), un coeficiente b equivale aproximadamente a un cambio de 100 × (e^b − 1) % en el ingreso. En Y2, el coeficiente es el cambio en horas por semana.\n\n\nCódigo\nterminos &lt;- c(\"anios_educ\", \"mujer\", \"edad\", \"sector_publico\", \"afiliado_pensiones\",\n              \"urbano\", \"lengua_nativa\", \"jefe_hogar\", \"casado_conviviente\", \"tam_hogar\")\ncoef_mv %&gt;%\n  filter(term %in% terminos) %&gt;%\n  select(response, term, estimate, p.value) %&gt;%\n  pivot_wider(names_from = response, values_from = c(estimate, p.value)) %&gt;%\n  transmute(predictora = term,\n            `Y1: coeficiente` = round(estimate_y1_ln_ingreso_mensual, 4),\n            `Y1: efecto en el ingreso (%)` = round(100 * (exp(estimate_y1_ln_ingreso_mensual) - 1), 1),\n            `Y2: horas por semana` = round(estimate_y2_horas_semanales, 2),\n            `p-valor Y1` = signif(p.value_y1_ln_ingreso_mensual, 3),\n            `p-valor Y2` = signif(p.value_y2_horas_semanales, 3))\n\n\n\n\n\n\n\n\n\n\n\n\n\n\npredictora\nY1: coeficiente\nY1: efecto en el ingreso (%)\nY2: horas por semana\np-valor Y1\np-valor Y2\n\n\n\n\nmujer\n-0.2108\n-19.0\n-3.09\n0.000\n0.00e+00\n\n\nedad\n0.0487\n5.0\n0.68\n0.000\n0.00e+00\n\n\nanios_educ\n0.0275\n2.8\n-0.04\n0.000\n4.41e-05\n\n\nlengua_nativa\n0.0042\n0.4\n0.46\n0.358\n4.67e-05\n\n\ncasado_conviviente\n0.0742\n7.7\n0.27\n0.000\n2.88e-04\n\n\njefe_hogar\n0.1158\n12.3\n1.61\n0.000\n0.00e+00\n\n\ntam_hogar\n0.0006\n0.1\n0.20\n0.354\n0.00e+00\n\n\nurbano\n0.1458\n15.7\n1.50\n0.000\n0.00e+00\n\n\nsector_publico\n0.1059\n11.2\n-3.46\n0.000\n0.00e+00\n\n\nafiliado_pensiones\n0.1689\n18.4\n1.10\n0.000\n0.00e+00\n\n\n\n\n\n\n\n\nCódigo\nb_educ &lt;- coef_mv %&gt;% filter(response == \"y1_ln_ingreso_mensual\", term == \"anios_educ\") %&gt;% pull(estimate)\n\n\nPor ejemplo, cada año adicional de educación se asocia con un ingreso 2.8 % mayor, manteniendo constantes las demás predictoras. Es el «retorno a la educación» de la ecuación de Mincer.",
+    "crumbs": [
+      "Modelos predictivos",
+      "6. Interpretabilidad"
+    ]
+  },
+  {
+    "objectID": "06-interpretabilidad.html#importancia-de-variables-random-forest",
+    "href": "06-interpretabilidad.html#importancia-de-variables-random-forest",
+    "title": "6. Interpretabilidad",
+    "section": "6.3 Importancia de variables (Random Forest)",
+    "text": "6.3 Importancia de variables (Random Forest)\n\n\nCódigo\nimportancia %&gt;%\n  group_by(objetivo) %&gt;%\n  mutate(importancia = 100 * importancia / max(importancia)) %&gt;%\n  slice_max(importancia, n = 15) %&gt;%\n  ungroup() %&gt;%\n  mutate(objetivo = etiqueta_obj[objetivo],\n         variable = reorder(paste(variable, objetivo, sep = \"___\"), importancia)) %&gt;%\n  ggplot(aes(importancia, variable)) +\n  geom_col(fill = \"#2F5496\") +\n  facet_wrap(~ objetivo, scales = \"free_y\") +\n  scale_y_discrete(labels = function(x) str_remove(x, \"___.*$\")) +\n  labs(x = \"Importancia relativa (máximo = 100)\", y = NULL)\n\n\n\n\n\n\n\n\nFigura 1: Las 15 predictoras más importantes para cada variable objetivo (Random Forest, reducción de impureza)\n\n\n\n\n\nLas predictoras que aparecen arriba en ambos paneles son las que más explican el ingreso y las horas. Se pueden contrastar con los coeficientes de la sección 6.2.",
+    "crumbs": [
+      "Modelos predictivos",
+      "6. Interpretabilidad"
+    ]
+  },
+  {
+    "objectID": "04-modelado.html",
+    "href": "04-modelado.html",
+    "title": "4. Modelado",
+    "section": "",
+    "text": "Variables objetivo: y1_ln_ingreso_mensual y y2_horas_semanales.\nPredictoras (19): mujer, edad, edad2, anios_educ, lengua_nativa, etnia, casado_conviviente, jefe_hogar, tam_hogar, urbano, region, cat_ocupacional, sector_publico, tam_empresa, contrato, afiliado_pensiones, rama, grupo_ocupacional, anio.\nPartición: 80 % entrenamiento y 20 % prueba, con semilla fija (2026) para que el resultado sea reproducible.\nValidación cruzada: 5 particiones (folds) sobre una muestra de 50,000 personas del entrenamiento.\nModelos:\n\nRegresión multivariada (MCO): estima las dos variables objetivo a la vez con las mismas predictoras. Es el modelo principal del trabajo.\nRegresión lineal para cada objetivo, como línea base.\nElastic Net (glmnet): regresión regularizada que combina Ridge y Lasso.\nRandom Forest (ranger): modelo no lineal basado en árboles. Para el ajuste final usa una muestra de 100,000 personas, para limitar el tiempo de cálculo.\n\n\n\n\nCódigo\np             &lt;- particionar(datos)\nentrenamiento &lt;- p$entrenamiento\nprueba        &lt;- p$prueba\n\nset.seed(semilla)\nmuestra_cv &lt;- slice_sample(entrenamiento, n = min(n_validacion_cruzada, nrow(entrenamiento)))\n\nguardar_tabla(tibble(conjunto = c(\"total\", \"entrenamiento\", \"prueba\", \"muestra para validación cruzada\"),\n                     personas = c(nrow(datos), nrow(entrenamiento), nrow(prueba), nrow(muestra_cv))),\n              \"particion\")",
+    "crumbs": [
+      "Modelos predictivos",
+      "4. Modelado"
+    ]
+  },
+  {
+    "objectID": "04-modelado.html#diseño",
+    "href": "04-modelado.html#diseño",
+    "title": "4. Modelado",
+    "section": "",
+    "text": "Variables objetivo: y1_ln_ingreso_mensual y y2_horas_semanales.\nPredictoras (19): mujer, edad, edad2, anios_educ, lengua_nativa, etnia, casado_conviviente, jefe_hogar, tam_hogar, urbano, region, cat_ocupacional, sector_publico, tam_empresa, contrato, afiliado_pensiones, rama, grupo_ocupacional, anio.\nPartición: 80 % entrenamiento y 20 % prueba, con semilla fija (2026) para que el resultado sea reproducible.\nValidación cruzada: 5 particiones (folds) sobre una muestra de 50,000 personas del entrenamiento.\nModelos:\n\nRegresión multivariada (MCO): estima las dos variables objetivo a la vez con las mismas predictoras. Es el modelo principal del trabajo.\nRegresión lineal para cada objetivo, como línea base.\nElastic Net (glmnet): regresión regularizada que combina Ridge y Lasso.\nRandom Forest (ranger): modelo no lineal basado en árboles. Para el ajuste final usa una muestra de 100,000 personas, para limitar el tiempo de cálculo.\n\n\n\n\nCódigo\np             &lt;- particionar(datos)\nentrenamiento &lt;- p$entrenamiento\nprueba        &lt;- p$prueba\n\nset.seed(semilla)\nmuestra_cv &lt;- slice_sample(entrenamiento, n = min(n_validacion_cruzada, nrow(entrenamiento)))\n\nguardar_tabla(tibble(conjunto = c(\"total\", \"entrenamiento\", \"prueba\", \"muestra para validación cruzada\"),\n                     personas = c(nrow(datos), nrow(entrenamiento), nrow(prueba), nrow(muestra_cv))),\n              \"particion\")",
+    "crumbs": [
+      "Modelos predictivos",
+      "4. Modelado"
+    ]
+  },
+  {
+    "objectID": "04-modelado.html#regresión-multivariada",
+    "href": "04-modelado.html#regresión-multivariada",
+    "title": "4. Modelado",
+    "section": "4.2 Regresión multivariada",
+    "text": "4.2 Regresión multivariada\nSe estima un solo modelo lineal con las dos variables objetivo, con la fórmula cbind(Y1, Y2) ~ predictoras. La prueba de Pillai indica si cada predictora tiene un efecto conjunto sobre el ingreso y las horas.\n\n\nCódigo\nmodelo_mv &lt;- lm(formula_multivariada, data = entrenamiento)\n\ncoef_mv &lt;- broom::tidy(modelo_mv)\nguardar_tabla(coef_mv, \"coeficientes_multivariado\")\n\npillai &lt;- anova(modelo_mv) %&gt;%\n  as_tibble(rownames = \"termino\") %&gt;%\n  filter(termino != \"(Intercept)\", termino != \"Residuals\")\nguardar_tabla(pillai, \"pillai_multivariado\")\n\ncor_residuos &lt;- cor(residuals(modelo_mv))[1, 2]\nguardar_tabla(tibble(correlacion_residuos_y1_y2 = cor_residuos), \"correlacion_residuos\")\n\npillai %&gt;% mutate(across(where(is.numeric), ~ signif(.x, 4)))\n\n\n\n\n\n\ntermino\nDf\nPillai\napprox F\nnum Df\nden Df\nPr(&gt;F)\n\n\n\n\nmujer\n1\n0.041170\n4949.0\n2\n230500\n0\n\n\nedad\n1\n0.125900\n16600.0\n2\n230500\n0\n\n\nedad2\n1\n0.154400\n21050.0\n2\n230500\n0\n\n\nanios_educ\n1\n0.350100\n62080.0\n2\n230500\n0\n\n\nlengua_nativa\n1\n0.005511\n638.8\n2\n230500\n0\n\n\netnia\n4\n0.005059\n146.2\n8\n461100\n0\n\n\ncasado_conviviente\n1\n0.007357\n854.2\n2\n230500\n0\n\n\njefe_hogar\n1\n0.008691\n1011.0\n2\n230500\n0\n\n\ntam_hogar\n1\n0.001791\n206.8\n2\n230500\n0\n\n\nurbano\n1\n0.035400\n4230.0\n2\n230500\n0\n\n\nregion\n3\n0.016040\n621.1\n6\n461100\n0\n\n\ncat_ocupacional\n2\n0.052390\n3100.0\n4\n461100\n0\n\n\nsector_publico\n1\n0.070590\n8755.0\n2\n230500\n0\n\n\ntam_empresa\n5\n0.099740\n2420.0\n10\n461100\n0\n\n\ncontrato\n4\n0.047980\n1417.0\n8\n461100\n0\n\n\nafiliado_pensiones\n1\n0.011280\n1315.0\n2\n230500\n0\n\n\nrama\n15\n0.119700\n978.7\n30\n461100\n0\n\n\ngrupo_ocupacional\n9\n0.057940\n764.2\n18\n461100\n0\n\n\nfactor(anio)\n11\n0.065630\n711.1\n22\n461100\n0\n\n\n\n\n\n\nLa correlación entre los residuos de Y1 y Y2 es 0.424: una vez consideradas las predictoras, el ingreso y las horas siguen relacionados. Esto justifica analizarlos de forma conjunta.",
+    "crumbs": [
+      "Modelos predictivos",
+      "4. Modelado"
+    ]
+  },
+  {
+    "objectID": "04-modelado.html#validación-cruzada-de-los-modelos-predictivos",
+    "href": "04-modelado.html#validación-cruzada-de-los-modelos-predictivos",
+    "title": "4. Modelado",
+    "section": "4.3 Validación cruzada de los modelos predictivos",
+    "text": "4.3 Validación cruzada de los modelos predictivos\n\n\nCódigo\ncombinaciones &lt;- expand_grid(objetivo = objetivos, modelo = names(modelos))\n\nevaluar_cv &lt;- function(objetivo, modelo) {\n  d &lt;- select(muestra_cv, all_of(c(objetivo, predictoras)))\n  set.seed(semilla)\n  folds &lt;- vfold_cv(d, v = v_folds)\n  workflow() %&gt;%\n    add_recipe(receta(objetivo, d)) %&gt;%\n    add_model(modelos[[modelo]]) %&gt;%\n    fit_resamples(folds, metrics = metricas) %&gt;%\n    collect_metrics() %&gt;%\n    mutate(objetivo = objetivo, modelo = modelo)\n}\n\nmetricas_cv &lt;- pmap_dfr(combinaciones, evaluar_cv) %&gt;%\n  select(objetivo, modelo, metrica = .metric, media = mean, error_estandar = std_err)\nguardar_tabla(metricas_cv, \"metricas_validacion_cruzada\")\n\nmetricas_cv %&gt;% mutate(across(where(is.numeric), ~ round(.x, 4)))\n\n\n\n\n\n\n\n\n\n\n\n\n\nobjetivo\nmodelo\nmetrica\nmedia\nerror_estandar\n\n\n\n\ny1_ln_ingreso_mensual\nlineal\nmae\n0.4512\n0.0018\n\n\ny1_ln_ingreso_mensual\nlineal\nrmse\n0.6128\n0.0042\n\n\ny1_ln_ingreso_mensual\nlineal\nrsq\n0.5556\n0.0049\n\n\ny1_ln_ingreso_mensual\nelastic_net\nmae\n0.4510\n0.0018\n\n\ny1_ln_ingreso_mensual\nelastic_net\nrmse\n0.6130\n0.0041\n\n\ny1_ln_ingreso_mensual\nelastic_net\nrsq\n0.5553\n0.0048\n\n\ny1_ln_ingreso_mensual\nrandom_forest\nmae\n0.4245\n0.0020\n\n\ny1_ln_ingreso_mensual\nrandom_forest\nrmse\n0.5884\n0.0046\n\n\ny1_ln_ingreso_mensual\nrandom_forest\nrsq\n0.5914\n0.0059\n\n\ny2_horas_semanales\nlineal\nmae\n11.3791\n0.0529\n\n\ny2_horas_semanales\nlineal\nrmse\n15.0874\n0.0623\n\n\ny2_horas_semanales\nlineal\nrsq\n0.1895\n0.0035\n\n\ny2_horas_semanales\nelastic_net\nmae\n11.3785\n0.0525\n\n\ny2_horas_semanales\nelastic_net\nrmse\n15.0871\n0.0617\n\n\ny2_horas_semanales\nelastic_net\nrsq\n0.1896\n0.0034\n\n\ny2_horas_semanales\nrandom_forest\nmae\n10.8300\n0.0452\n\n\ny2_horas_semanales\nrandom_forest\nrmse\n14.6276\n0.0608\n\n\ny2_horas_semanales\nrandom_forest\nrsq\n0.2392\n0.0034",
+    "crumbs": [
+      "Modelos predictivos",
+      "4. Modelado"
+    ]
+  },
+  {
+    "objectID": "04-modelado.html#ajuste-final-y-evaluación-en-el-conjunto-de-prueba",
+    "href": "04-modelado.html#ajuste-final-y-evaluación-en-el-conjunto-de-prueba",
+    "title": "4. Modelado",
+    "section": "4.4 Ajuste final y evaluación en el conjunto de prueba",
+    "text": "4.4 Ajuste final y evaluación en el conjunto de prueba\nCada modelo se entrena con el conjunto de entrenamiento y se evalúa en el 20 % de prueba, que no se usó para entrenar.\n\n\nCódigo\najustar_y_probar &lt;- function(objetivo, modelo) {\n  ajuste &lt;- ajustar_workflow(objetivo, modelo, entrenamiento)\n\n  pred &lt;- predict(ajuste, select(prueba, all_of(predictoras))) %&gt;%\n    mutate(real = prueba[[objetivo]], objetivo = objetivo, modelo = modelo)\n\n  importancia &lt;- if (modelo == \"random_forest\") {\n    imp &lt;- extract_fit_engine(ajuste)$variable.importance\n    tibble(objetivo = objetivo, variable = names(imp), importancia = unname(imp))\n  } else NULL\n\n  list(pred = pred, importancia = importancia)\n}\n\nresultados &lt;- pmap(combinaciones, ajustar_y_probar)\n\npredicciones &lt;- map_dfr(resultados, \"pred\")\nmetricas_prueba &lt;- predicciones %&gt;%\n  group_by(objetivo, modelo) %&gt;%\n  metricas(truth = real, estimate = .pred) %&gt;%\n  select(objetivo, modelo, metrica = .metric, valor = .estimate)\nguardar_tabla(metricas_prueba, \"metricas_prueba\")\n\nset.seed(semilla)\npredicciones %&gt;%\n  group_by(objetivo, modelo) %&gt;%\n  slice_sample(n = 5000) %&gt;%\n  ungroup() %&gt;%\n  guardar_tabla(\"predicciones_prueba_muestra\")\n\nmap_dfr(resultados, \"importancia\") %&gt;% guardar_tabla(\"importancia_random_forest\")\n\nmetricas_prueba %&gt;%\n  pivot_wider(names_from = metrica, values_from = valor) %&gt;%\n  mutate(across(where(is.numeric), ~ round(.x, 4)))\n\n\n\n\n\n\nobjetivo\nmodelo\nrmse\nrsq\nmae\n\n\n\n\ny1_ln_ingreso_mensual\nelastic_net\n0.6088\n0.5596\n0.4495\n\n\ny1_ln_ingreso_mensual\nlineal\n0.6086\n0.5598\n0.4497\n\n\ny1_ln_ingreso_mensual\nrandom_forest\n0.5773\n0.6048\n0.4173\n\n\ny2_horas_semanales\nelastic_net\n15.0666\n0.1878\n11.3415\n\n\ny2_horas_semanales\nlineal\n15.0651\n0.1880\n11.3409\n\n\ny2_horas_semanales\nrandom_forest\n14.5288\n0.2453\n10.7346\n\n\n\n\n\n\nLos resultados se guardan en outputs/tablas/. A partir de ellos se construyen las páginas de validación, interpretabilidad y el dashboard.",
+    "crumbs": [
+      "Modelos predictivos",
+      "4. Modelado"
+    ]
+  },
+  {
+    "objectID": "02-limpieza.html",
+    "href": "02-limpieza.html",
+    "title": "2. Limpieza y base del modelo",
+    "section": "",
+    "text": "Esta etapa construye base_modelo: los asalariados ocupados con todas las variables del modelo completas y recodificadas. Es la misma lógica que se aplicó en PostgreSQL, escrita con dplyr para que se pueda reproducir sin una base de datos.\nCódigo\nif (interim_listo) {\n  unida &lt;- leer_base_unida()\n  asalariados &lt;- unida %&gt;% filter(ocu500 == 1, p507 %in% c(3, 4, 6))\n  cat(\"Personas en la base unida:\", fmt(nrow(unida)),\n      \"| asalariados ocupados:\", fmt(nrow(asalariados)), \"\\n\")\n} else {\n  cat(\"No está la base unida (datos/interim): se usa base_modelo.csv.gz ya generado o descargado de Zenodo.\\n\")\n}\n\n\nPersonas en la base unida: 1,512,409 | asalariados ocupados: 309,026",
+    "crumbs": [
+      "Pipeline de datos",
+      "2. Limpieza"
+    ]
+  },
+  {
+    "objectID": "02-limpieza.html#diagnóstico-de-faltantes",
+    "href": "02-limpieza.html#diagnóstico-de-faltantes",
+    "title": "2. Limpieza y base del modelo",
+    "section": "2.1 Diagnóstico de faltantes",
+    "text": "2.1 Diagnóstico de faltantes\nSe distinguen dos tipos de celdas vacías:\n\nPase: la encuesta no le hace esa pregunta a esa persona. No es un error y no se elimina.\nFaltante real: la persona debía responder y no hay dato, o tiene un código de «sin dato» (9, 99, 9999).\n\n\n\nCódigo\nif (interim_listo) {\n  faltantes &lt;- asalariados %&gt;%\n    summarise(\n      `Contrato (p511a)`          = sum(is.na(p511a)),\n      `Sector (p510)`             = sum(is.na(p510)),\n      `Tamaño de empresa (p512a)` = sum(is.na(p512a) | p512a %in% 9),\n      `Ingreso (i524a1)`          = sum(is.na(i524a1) | i524a1 &lt;= 0),\n      `Lengua materna (p300a)`    = sum(is.na(p300a) | p300a %in% c(9, 99)),\n      `Educación (p301a)`         = sum(is.na(p301a) | p301a %in% c(12, 99)),\n      `Horas (p513t)`             = sum(is.na(p513t))) %&gt;%\n    pivot_longer(everything(), names_to = \"Variable\", values_to = \"Faltantes\") %&gt;%\n    mutate(`% de asalariados` = round(100 * Faltantes / nrow(asalariados), 2)) %&gt;%\n    arrange(desc(Faltantes))\n  guardar_tabla(faltantes, \"faltantes_modelo\")\n}\nif (file.exists(file.path(rutas$tablas, \"faltantes_modelo.csv\"))) {\n  read_csv(file.path(rutas$tablas, \"faltantes_modelo.csv\"), show_col_types = FALSE)\n}\n\n\n\n\n\n\nVariable\nFaltantes\n% de asalariados\n\n\n\n\nContrato (p511a)\n13312\n4.31\n\n\nSector (p510)\n12760\n4.13\n\n\nTamaño de empresa (p512a)\n3872\n1.25\n\n\nIngreso (i524a1)\n2242\n0.73\n\n\nLengua materna (p300a)\n142\n0.05\n\n\nEducación (p301a)\n138\n0.04\n\n\nHoras (p513t)\n3\n0.00\n\n\n\n\n\n\nPara separar los pases de los faltantes reales se revisa dónde se concentran:\n\n\nCódigo\nif (interim_listo) {\n  pases &lt;- bind_rows(\n    asalariados %&gt;% filter(p507 == 6) %&gt;%\n      summarise(Grupo = \"Trabajadores del hogar (p507 = 6)\", Total = n(),\n                `Sin sector` = sum(is.na(p510)), `Sin contrato` = sum(is.na(p511a)),\n                `Sin tamaño` = sum(is.na(p512a) | p512a %in% 9)),\n    asalariados %&gt;% filter(p510 %in% 1) %&gt;%\n      summarise(Grupo = \"FF.AA. y Policía (p510 = 1)\", Total = n(),\n                `Sin sector` = sum(is.na(p510)), `Sin contrato` = sum(is.na(p511a)),\n                `Sin tamaño` = sum(is.na(p512a) | p512a %in% 9)),\n    asalariados %&gt;% filter(anio == 2020, !p510 %in% 1) %&gt;%\n      summarise(Grupo = \"Resto de asalariados, año 2020\", Total = n(),\n                `Sin sector` = sum(is.na(p510)), `Sin contrato` = sum(is.na(p511a)),\n                `Sin tamaño` = sum(is.na(p512a) | p512a %in% 9)))\n  guardar_tabla(pases, \"faltantes_pases\")\n}\nif (file.exists(file.path(rutas$tablas, \"faltantes_pases.csv\"))) {\n  read_csv(file.path(rutas$tablas, \"faltantes_pases.csv\"), show_col_types = FALSE)\n}\n\n\n\n\n\n\n\n\n\n\n\n\n\nGrupo\nTotal\nSin sector\nSin contrato\nSin tamaño\n\n\n\n\nTrabajadores del hogar (p507 = 6)\n12760\n12760\n292\n0\n\n\nFF.AA. y Policía (p510 = 1)\n3869\n0\n3867\n3869\n\n\nResto de asalariados, año 2020\n21255\n748\n8508\n3\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nCaso\nTipo\nTratamiento\n\n\n\n\nSector vacío en trabajadores del hogar\nPase\nSector público = 0\n\n\nContrato y tamaño vacíos en FF.AA./PNP\nPase\nCategoría propia ffaa_pnp\n\n\nContrato vacío en el resto (concentrado en 2020, encuesta telefónica por la pandemia)\nFaltante real\nSe elimina la fila\n\n\nLengua, educación, tamaño, horas\nFaltante real\nSe elimina la fila\n\n\nIngreso vacío o igual a 0\nFuera de la población\nSe exige ingreso &gt; 0",
+    "crumbs": [
+      "Pipeline de datos",
+      "2. Limpieza"
+    ]
+  },
+  {
+    "objectID": "02-limpieza.html#construcción-de-base_modelo",
+    "href": "02-limpieza.html#construcción-de-base_modelo",
+    "title": "2. Limpieza y base del modelo",
+    "section": "2.2 Construcción de base_modelo",
+    "text": "2.2 Construcción de base_modelo\n\n\nCódigo\nif (interim_listo) {\n  base_modelo &lt;- construir_base_modelo(unida)\n  write_csv(base_modelo, archivo_base_modelo)        # .csv.gz: comprimido para publicar en Zenodo\n\n  embudo &lt;- tibble(\n    Etapa = c(\"Base unida (módulos 200 + 300 + 500)\", \"Con datos del módulo de empleo\",\n              \"Asalariados ocupados\", \"Con ingreso mayor que 0\", \"base_modelo\"),\n    Personas = c(nrow(unida), sum(!is.na(unida$ocu500)), nrow(asalariados),\n                 sum(asalariados$i524a1 &gt; 0, na.rm = TRUE), nrow(base_modelo)))\n  guardar_tabla(embudo, \"embudo\")\n  rm(unida, asalariados); invisible(gc())\n}\n\nbase_modelo &lt;- read_csv(archivo_base_modelo, show_col_types = FALSE)\nif (file.exists(file.path(rutas$tablas, \"embudo.csv\"))) {\n  read_csv(file.path(rutas$tablas, \"embudo.csv\"), show_col_types = FALSE) %&gt;%\n    mutate(`%` = round(100 * Personas / first(Personas), 1))\n}\n\n\n\n\n\n\nEtapa\nPersonas\n%\n\n\n\n\nBase unida (módulos 200 + 300 + 500)\n1512409\n100.0\n\n\nCon datos del módulo de empleo\n1081583\n71.5\n\n\nAsalariados ocupados\n309026\n20.4\n\n\nCon ingreso mayor que 0\n306784\n20.3\n\n\nbase_modelo\n288241\n19.1\n\n\n\n\n\n\nbase_modelo tiene 288,241 asalariados, las 2 variables objetivo y las 19 predictoras.",
+    "crumbs": [
+      "Pipeline de datos",
+      "2. Limpieza"
+    ]
+  },
+  {
+    "objectID": "02-limpieza.html#verificación-por-año",
+    "href": "02-limpieza.html#verificación-por-año",
+    "title": "2. Limpieza y base del modelo",
+    "section": "2.3 Verificación por año",
+    "text": "2.3 Verificación por año\n\n\nCódigo\npor_anio &lt;- base_modelo %&gt;%\n  group_by(anio) %&gt;%\n  summarise(asalariados = n(),\n            ingreso_mensual_prom = round(mean(exp(y1_ln_ingreso_mensual))),\n            horas_prom = round(mean(y2_horas_semanales), 1))\nguardar_tabla(por_anio, \"base_modelo_por_anio\")\npor_anio\n\n\n\n\n\n\nanio\nasalariados\ningreso_mensual_prom\nhoras_prom\n\n\n\n\n2014\n24493\n1169\n42.5\n\n\n2015\n24408\n1221\n42.8\n\n\n2016\n27405\n1304\n42.6\n\n\n2017\n25738\n1334\n42.6\n\n\n2018\n27381\n1375\n42.5\n\n\n2019\n25584\n1403\n42.0\n\n\n2020\n12377\n1441\n42.6\n\n\n2021\n22125\n1440\n42.1\n\n\n2022\n24929\n1505\n42.1\n\n\n2023\n24569\n1599\n41.6\n\n\n2024\n24718\n1683\n42.4\n\n\n2025\n24514\n1778\n42.6",
+    "crumbs": [
+      "Pipeline de datos",
+      "2. Limpieza"
+    ]
+  },
+  {
+    "objectID": "02-limpieza.html#diccionario-de-base_modelo",
+    "href": "02-limpieza.html#diccionario-de-base_modelo",
+    "title": "2. Limpieza y base del modelo",
+    "section": "2.4 Diccionario de base_modelo",
+    "text": "2.4 Diccionario de base_modelo\nEste diccionario se publica en Zenodo junto con los datos.\n\n\nCódigo\ndiccionario &lt;- tribble(\n  ~variable, ~descripcion, ~fuente_enaho,\n  \"anio, conglome, vivienda, hogar, codperso\", \"Año y llaves de identificación de la persona\", \"Módulo 200\",\n  \"fac500a\", \"Factor de expansión del módulo de empleo\", \"fac500a\",\n  \"y1_ln_ingreso_mensual\", \"Logaritmo del ingreso mensual de la ocupación principal (imputado y deflactado por el INEI)\", \"ln(i524a1 / 12)\",\n  \"y2_horas_semanales\", \"Horas trabajadas la semana pasada en la ocupación principal\", \"p513t\",\n  \"mujer\", \"1 = mujer\", \"p207\",\n  \"edad, edad2\", \"Edad en años y su cuadrado\", \"p208a\",\n  \"anios_educ\", \"Años de educación aprobados\", \"p301a, p301b, p301c\",\n  \"lengua_nativa\", \"1 = lengua materna originaria\", \"p300a\",\n  \"etnia\", \"indígena, afro, blanco, mestizo, otro_ns\", \"p558c\",\n  \"casado_conviviente\", \"1 = casado(a) o conviviente\", \"p209\",\n  \"jefe_hogar\", \"1 = jefe(a) de hogar\", \"p203\",\n  \"tam_hogar\", \"Número de miembros del hogar\", \"conteo módulo 200 (p204 = 1)\",\n  \"urbano\", \"1 = estrato 1 a 5\", \"estrato\",\n  \"region\", \"costa, sierra, selva, lima_metropolitana\", \"dominio\",\n  \"cat_ocupacional\", \"empleado, obrero, trab_hogar\", \"p507\",\n  \"sector_publico\", \"1 = FF.AA./PNP, administración o empresa pública\", \"p510\",\n  \"tam_empresa\", \"Rango de trabajadores de la empresa o ffaa_pnp\", \"p512a\",\n  \"contrato\", \"indefinido, plazo_fijo, cas, sin_contrato, otro, ffaa_pnp\", \"p511a\",\n  \"afiliado_pensiones\", \"1 = afiliado a un sistema de pensiones\", \"p558a1 a p558a5\",\n  \"rama\", \"Sección CIIU rev. 4\", \"p506r4\",\n  \"grupo_ocupacional\", \"Gran grupo de ocupación (1er dígito)\", \"p505r4\")\nwrite_csv(diccionario, file.path(rutas$processed, \"diccionario_base_modelo.csv\"))\ndiccionario\n\n\n\n\n\n\n\n\n\n\n\nvariable\ndescripcion\nfuente_enaho\n\n\n\n\nanio, conglome, vivienda, hogar, codperso\nAño y llaves de identificación de la persona\nMódulo 200\n\n\nfac500a\nFactor de expansión del módulo de empleo\nfac500a\n\n\ny1_ln_ingreso_mensual\nLogaritmo del ingreso mensual de la ocupación principal (imputado y deflactado por el INEI)\nln(i524a1 / 12)\n\n\ny2_horas_semanales\nHoras trabajadas la semana pasada en la ocupación principal\np513t\n\n\nmujer\n1 = mujer\np207\n\n\nedad, edad2\nEdad en años y su cuadrado\np208a\n\n\nanios_educ\nAños de educación aprobados\np301a, p301b, p301c\n\n\nlengua_nativa\n1 = lengua materna originaria\np300a\n\n\netnia\nindígena, afro, blanco, mestizo, otro_ns\np558c\n\n\ncasado_conviviente\n1 = casado(a) o conviviente\np209\n\n\njefe_hogar\n1 = jefe(a) de hogar\np203\n\n\ntam_hogar\nNúmero de miembros del hogar\nconteo módulo 200 (p204 = 1)\n\n\nurbano\n1 = estrato 1 a 5\nestrato\n\n\nregion\ncosta, sierra, selva, lima_metropolitana\ndominio\n\n\ncat_ocupacional\nempleado, obrero, trab_hogar\np507\n\n\nsector_publico\n1 = FF.AA./PNP, administración o empresa pública\np510\n\n\ntam_empresa\nRango de trabajadores de la empresa o ffaa_pnp\np512a\n\n\ncontrato\nindefinido, plazo_fijo, cas, sin_contrato, otro, ffaa_pnp\np511a\n\n\nafiliado_pensiones\n1 = afiliado a un sistema de pensiones\np558a1 a p558a5\n\n\nrama\nSección CIIU rev. 4\np506r4\n\n\ngrupo_ocupacional\nGran grupo de ocupación (1er dígito)\np505r4",
+    "crumbs": [
+      "Pipeline de datos",
+      "2. Limpieza"
+    ]
+  },
+  {
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": "Regresión multivariada con dos variables objetivo: ENAHO 2014–2025",
+    "section": "",
+    "text": "Componente\nDónde\n\n\n\n\nModelado\nRegresión multivariada (MCO), lineal, Elastic Net y Random Forest: 4. Modelado\n\n\nValidación\nValidación cruzada y conjunto de prueba con RMSE, R² y MAE: 5. Validación\n\n\nInterpretabilidad\nCoeficientes, prueba de Pillai e importancia de variables: 6. Interpretabilidad\n\n\nReproducibilidad\nQuarto, rutas relativas, semilla fija, renv, freeze, datos con DOI: LISTA_REPRODUCIBILIDAD.md\n\n\nMLOps\nRegistro y versiones de modelos, API, monitoreo y GitHub Actions: 7. MLOps",
+    "crumbs": [
+      "Inicio y arquitectura"
+    ]
+  },
+  {
+    "objectID": "index.html#componentes-del-pipeline",
+    "href": "index.html#componentes-del-pipeline",
+    "title": "Regresión multivariada con dos variables objetivo: ENAHO 2014–2025",
+    "section": "",
+    "text": "Componente\nDónde\n\n\n\n\nModelado\nRegresión multivariada (MCO), lineal, Elastic Net y Random Forest: 4. Modelado\n\n\nValidación\nValidación cruzada y conjunto de prueba con RMSE, R² y MAE: 5. Validación\n\n\nInterpretabilidad\nCoeficientes, prueba de Pillai e importancia de variables: 6. Interpretabilidad\n\n\nReproducibilidad\nQuarto, rutas relativas, semilla fija, renv, freeze, datos con DOI: LISTA_REPRODUCIBILIDAD.md\n\n\nMLOps\nRegistro y versiones de modelos, API, monitoreo y GitHub Actions: 7. MLOps",
+    "crumbs": [
+      "Inicio y arquitectura"
+    ]
+  },
+  {
+    "objectID": "index.html#objetivo",
+    "href": "index.html#objetivo",
+    "title": "Regresión multivariada con dos variables objetivo: ENAHO 2014–2025",
+    "section": "Objetivo",
+    "text": "Objetivo\nEstimar, con datos de la Encuesta Nacional de Hogares (ENAHO) 2014–2025, una regresión multivariada que explique a la vez dos resultados del mercado laboral de los asalariados en el Perú:\n\nY1: logaritmo del ingreso mensual de la ocupación principal.\nY2: horas trabajadas a la semana en la ocupación principal.\n\nPara ello se usan 19 predictoras (características personales, del hogar, de la ubicación y del empleo) y se comparan varios modelos predictivos con métricas de validación.",
+    "crumbs": [
+      "Inicio y arquitectura"
+    ]
+  },
+  {
+    "objectID": "index.html#arquitectura-del-pipeline",
+    "href": "index.html#arquitectura-del-pipeline",
+    "title": "Regresión multivariada con dos variables objetivo: ENAHO 2014–2025",
+    "section": "Arquitectura del pipeline",
+    "text": "Arquitectura del pipeline\nEste proyecto Quarto es la arquitectura local del pipeline: cada etapa es una página que lee lo que dejó la anterior y guarda sus resultados en disco. Así el trabajo se puede reproducir de punta a punta con un solo comando (quarto render).\n\n\nCódigo\nflowchart LR\n  A[(\"CSV del INEI&lt;br/&gt;módulos 200, 300, 500&lt;br/&gt;2014–2025\")] --&gt; B[\"1. Integración&lt;br/&gt;inventario y unión\"]\n  B --&gt; C[(\"datos/interim&lt;br/&gt;base unida por año\")]\n  C --&gt; D[\"2. Limpieza&lt;br/&gt;faltantes y recodificación\"]\n  D --&gt; E[(\"datos/processed&lt;br/&gt;base_modelo.csv.gz\")]\n  E --&gt; F[\"3. Exploración\"]\n  E --&gt; G[\"4. Modelado&lt;br/&gt;tidymodels\"]\n  G --&gt; H[\"5. Validación&lt;br/&gt;métricas\"]\n  G --&gt; I[\"6. Interpretabilidad\"]\n  H --&gt; J[\"Dashboard\"]\n  I --&gt; J\n  H --&gt; N[\"7. MLOps&lt;br/&gt;registro, API, monitoreo\"]\n  N --&gt; K[\"8. Despliegue&lt;br/&gt;PostgreSQL\"]\n  E --&gt; L[\"9. Datos abiertos&lt;br/&gt;Zenodo (DOI)\"]\n  N --&gt; M[\"Código&lt;br/&gt;GitHub + Actions\"]\n\n\n\n\n\n\nflowchart LR\n  A[(\"CSV del INEI&lt;br/&gt;módulos 200, 300, 500&lt;br/&gt;2014–2025\")] --&gt; B[\"1. Integración&lt;br/&gt;inventario y unión\"]\n  B --&gt; C[(\"datos/interim&lt;br/&gt;base unida por año\")]\n  C --&gt; D[\"2. Limpieza&lt;br/&gt;faltantes y recodificación\"]\n  D --&gt; E[(\"datos/processed&lt;br/&gt;base_modelo.csv.gz\")]\n  E --&gt; F[\"3. Exploración\"]\n  E --&gt; G[\"4. Modelado&lt;br/&gt;tidymodels\"]\n  G --&gt; H[\"5. Validación&lt;br/&gt;métricas\"]\n  G --&gt; I[\"6. Interpretabilidad\"]\n  H --&gt; J[\"Dashboard\"]\n  I --&gt; J\n  H --&gt; N[\"7. MLOps&lt;br/&gt;registro, API, monitoreo\"]\n  N --&gt; K[\"8. Despliegue&lt;br/&gt;PostgreSQL\"]\n  E --&gt; L[\"9. Datos abiertos&lt;br/&gt;Zenodo (DOI)\"]\n  N --&gt; M[\"Código&lt;br/&gt;GitHub + Actions\"]\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nEtapa\nPágina\nEntrada\nSalida\n\n\n\n\n1. Integración\n01-integracion.qmd\ndatos/raw/ (CSV del INEI)\ndatos/interim/enaho_unida_AAAA.rds\n\n\n2. Limpieza\n02-limpieza.qmd\ndatos/interim/\ndatos/processed/base_modelo.csv.gz\n\n\n3. Exploración\n03-exploracion.qmd\nbase_modelo\ngráficos descriptivos\n\n\n4. Modelado\n04-modelado.qmd\nbase_modelo\noutputs/ (métricas, predicciones, coeficientes)\n\n\n5. Validación\n05-validacion.qmd\noutputs/\ncomparación de modelos\n\n\n6. Interpretabilidad\n06-interpretabilidad.qmd\noutputs/\nefectos e importancia de variables\n\n\n7. MLOps\n07-mlops.qmd\nbase_modelo, mejor modelo\nregistro de modelos con versiones, API, monitoreo por año\n\n\n8. Despliegue\n08-despliegue.qmd\nbase_modelo, outputs/\ntablas en PostgreSQL\n\n\n9. Disponibilidad de datos\n09-disponibilidad-datos.qmd\n—\nGitHub (código) y Zenodo (datos, DOI)\n\n\nDashboard\ndashboard.qmd\noutputs/\ntablero de resultados",
+    "crumbs": [
+      "Inicio y arquitectura"
+    ]
+  },
+  {
+    "objectID": "index.html#estructura-de-carpetas",
+    "href": "index.html#estructura-de-carpetas",
+    "title": "Regresión multivariada con dos variables objetivo: ENAHO 2014–2025",
+    "section": "Estructura de carpetas",
+    "text": "Estructura de carpetas\nenaho-regresion-multivariada/\n├── _quarto.yml               configuración del proyecto Quarto\n├── index.qmd ... 09-*.qmd    etapas del pipeline\n├── dashboard.qmd             tablero de resultados\n├── R/                        funciones reutilizables\n│   ├── 00_config.R           rutas, semilla y parámetros\n│   ├── 01_funciones_integracion.R\n│   ├── 02_funciones_limpieza.R\n│   ├── 03_funciones_modelado.R\n│   └── instalar_paquetes.R\n├── datos/\n│   ├── raw/                  CSV originales del INEI   (no se suben a GitHub)\n│   ├── interim/              base unida por año        (no se sube a GitHub)\n│   └── processed/            base_modelo               (se publica en Zenodo)\n├── outputs/                  tablas, figuras y registro de modelos\n├── api/                      APIs de predicción (plumber) generadas por vetiver\n├── .github/workflows/        publicación automática (GitHub Actions)\n├── imagenes/                 logo\n├── docs/                     sitio web generado        (GitHub Pages)\n├── README.md\n├── LISTA_REPRODUCIBILIDAD.md\n└── CITATION.cff",
+    "crumbs": [
+      "Inicio y arquitectura"
+    ]
+  },
+  {
+    "objectID": "index.html#cómo-reproducir",
+    "href": "index.html#cómo-reproducir",
+    "title": "Regresión multivariada con dos variables objetivo: ENAHO 2014–2025",
+    "section": "Cómo reproducir",
+    "text": "Cómo reproducir\n\nClonar el repositorio de GitHub.\nInstalar los paquetes: source(\"R/instalar_paquetes.R\") o, mejor, renv::restore() para obtener las mismas versiones.\nObtener los datos, de una de estas dos formas:\n\nDesde cero: descargar los módulos 200, 300 y 500 de 2014 a 2025 del portal de microdatos del INEI y copiarlos en datos/raw/.\nDirecto al modelo: descargar base_modelo.csv.gz desde Zenodo (ver Disponibilidad de datos) y copiarlo en datos/processed/. Las etapas 1 y 2 se saltan solas.\n\nEn la terminal, dentro de la carpeta del proyecto: quarto render.",
+    "crumbs": [
+      "Inicio y arquitectura"
+    ]
+  },
+  {
+    "objectID": "01-integracion.html",
+    "href": "01-integracion.html",
+    "title": "1. Integración de los módulos",
+    "section": "",
+    "text": "La ENAHO se publica por año y por módulo. Esta etapa inventaría las variables de los 36 archivos CSV (3 módulos × 12 años) y une los módulos de cada año en una sola base, usando las 4 llaves que identifican a cada persona: conglome, vivienda, hogar y codperso.\nCódigo\n# La etapa solo se ejecuta si faltan resultados; si ya existen (o si se descargó\n# base_modelo desde Zenodo), se reutilizan.\ninfo &lt;- buscar_archivos(rutas$raw)\ninterim_listo &lt;- all(file.exists(file.path(rutas$interim, sprintf(\"enaho_unida_%d.rds\", anios))))\nhay_raw       &lt;- nrow(info) &gt; 0\nejecutar      &lt;- hay_raw && !interim_listo\ncat(\"Archivos CSV encontrados en datos/raw:\", nrow(info),\n    \"| base unida ya generada:\", interim_listo,\n    \"| se ejecuta la integración:\", ejecutar, \"\\n\")\n\n\nArchivos CSV encontrados en datos/raw: 36 | base unida ya generada: FALSE | se ejecuta la integración: TRUE",
+    "crumbs": [
+      "Pipeline de datos",
+      "1. Integración"
+    ]
+  },
+  {
+    "objectID": "01-integracion.html#inventario-de-variables",
+    "href": "01-integracion.html#inventario-de-variables",
+    "title": "1. Integración de los módulos",
+    "section": "1.1 Inventario de variables",
+    "text": "1.1 Inventario de variables\nSe lee solo el encabezado de cada archivo y se cuenta en qué módulos y años aparece cada variable. Solo se usan las variables presentes en los 12 años, para que la base sea comparable en toda la serie.\n\n\nCódigo\narchivo_inventario &lt;- file.path(rutas$tablas, \"inventario_variables.csv\")\nif (hay_raw && !file.exists(archivo_inventario)) {\n  inventario &lt;- inventario_variables(info)\n  guardar_tabla(inventario, \"inventario_variables\")\n  guardar_tabla(info %&gt;% transmute(modulo, anio, archivo = basename(ruta), mb), \"archivos_leidos\")\n}\n\nif (file.exists(archivo_inventario)) {\n  inventario &lt;- read_csv(archivo_inventario, show_col_types = FALSE)\n  vars_12    &lt;- filter(inventario, en_todos_los_anios)\n  tibble(Indicador = c(\"Variables distintas (cada una contada una vez)\",\n                       \"Presentes en los 12 años\", \"Solo en algunos años\"),\n         Valor = fmt(c(nrow(inventario), nrow(vars_12), nrow(inventario) - nrow(vars_12))))\n} else {\n  cat(\"No hay CSV del INEI en datos/raw: se omite el inventario.\")\n}\n\n\n\n\n\n\nIndicador\nValor\n\n\n\n\nVariables distintas (cada una contada una vez)\n2,301\n\n\nPresentes en los 12 años\n911\n\n\nSolo en algunos años\n1,390",
+    "crumbs": [
+      "Pipeline de datos",
+      "1. Integración"
+    ]
+  },
+  {
+    "objectID": "01-integracion.html#unión-de-los-módulos",
+    "href": "01-integracion.html#unión-de-los-módulos",
+    "title": "1. Integración de los módulos",
+    "section": "1.2 Unión de los módulos",
+    "text": "1.2 Unión de los módulos\nPara cada año, el módulo 200 (todas las personas) es la base y se le pegan los módulos 300 y 500 con left_join(). El argumento relationship = \"one-to-one\" detiene el proceso si una persona aparece dos veces, lo que garantiza que no se dupliquen filas. Durante la lectura, la función limpiar_col() corrige los decimales escritos con coma (12000,5 → 12000.5).\n\n\nCódigo\narchivo_resumen &lt;- file.path(rutas$tablas, \"resumen_union.csv\")\nif (ejecutar) {\n  vars_mod &lt;- map(set_names(c(\"200\", \"300\", \"500\")), function(m) {\n    vars_12 %&gt;% filter(modulo_origen == m, variable != \"anio\", !variable %in% llaves) %&gt;% pull(variable)\n  })\n  orden &lt;- c(\"anio\", llaves, unlist(vars_mod, use.names = FALSE))\n\n  resultados &lt;- map(anios, unir_anio, info = info, vars_mod = vars_mod, orden = orden) %&gt;% compact()\n  guardar_tabla(map_dfr(resultados, \"resumen\"), \"resumen_union\")\n  guardar_tabla(map_dfr(resultados, \"coma\"),    \"decimales_coma\")\n}\n\nif (file.exists(archivo_resumen)) {\n  resumen_union &lt;- read_csv(archivo_resumen, show_col_types = FALSE)\n  resumen_union\n}\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nanio\nfilas_mod_200\nfilas_mod_300\nfilas_mod_500\nfilas_unida\ncolumnas\n\n\n\n\n2014\n124154\n111741\n87871\n124154\n911\n\n\n2015\n127474\n113605\n88084\n127474\n911\n\n\n2016\n138427\n125139\n97422\n138427\n911\n\n\n2017\n132657\n119188\n93185\n132657\n911\n\n\n2018\n139657\n126761\n99646\n139657\n911\n\n\n2019\n128276\n116590\n92094\n128276\n911\n\n\n2020\n126831\n115777\n91315\n126831\n911\n\n\n2021\n121067\n109867\n86806\n121067\n911\n\n\n2022\n121253\n110257\n87661\n121253\n911\n\n\n2023\n119747\n108354\n86654\n119747\n911\n\n\n2024\n117721\n106619\n85992\n117721\n911\n\n\n2025\n115145\n104446\n84853\n115145\n911\n\n\n\n\n\n\n\n\nCódigo\nif (exists(\"resumen_union\")) {\n  sin_perdidas &lt;- all(resumen_union$filas_unida == resumen_union$filas_mod_200)\n  cat(\"Personas en la base unida:\", fmt(sum(resumen_union$filas_unida)),\n      \"| columnas:\", max(resumen_union$columnas),\n      \"| mismas filas que el módulo 200 en todos los años:\", sin_perdidas, \"\\n\")\n}\n\n\nPersonas en la base unida: 1,512,409 | columnas: 911 | mismas filas que el módulo 200 en todos los años: TRUE \n\n\nLos módulos 300 y 500 tienen menos filas por diseño de la encuesta: el 300 solo incluye a las personas de 3 años a más y el 500 a las de 14 años a más.",
+    "crumbs": [
+      "Pipeline de datos",
+      "1. Integración"
+    ]
+  },
+  {
+    "objectID": "03-exploracion.html",
+    "href": "03-exploracion.html",
+    "title": "3. Exploración de los datos",
+    "section": "",
+    "text": "Código\nbase_modelo %&gt;%\n  select(`Y1: ln ingreso mensual` = y1_ln_ingreso_mensual,\n         `Y2: horas semanales` = y2_horas_semanales) %&gt;%\n  pivot_longer(everything()) %&gt;%\n  ggplot(aes(value)) +\n  geom_histogram(bins = 60, fill = \"#2F5496\") +\n  facet_wrap(~ name, scales = \"free\") +\n  labs(x = NULL, y = \"Personas\")\n\n\n\n\n\n\n\n\nFigura 1: Distribución de las dos variables objetivo\n\n\n\n\n\n\n\nCódigo\nbase_modelo %&gt;%\n  summarise(across(all_of(objetivos),\n                   list(media = mean, mediana = median, de = sd, min = min, max = max))) %&gt;%\n  pivot_longer(everything(), names_to = c(\"variable\", \".value\"),\n               names_pattern = \"(y[12]_.*)_(media|mediana|de|min|max)\") %&gt;%\n  mutate(across(where(is.numeric), ~ round(.x, 2)))\n\n\n\n\n\n\nvariable\nmedia\nde\nmin\nmax\n\n\n\n\ny1_ln_ingreso_mensual\n6.92\n0.91\n1.61\n10.46\n\n\ny1_ln_ingreso_mensual\n7.00\nNA\nNA\nNA\n\n\ny2_horas_semanales\n42.36\n16.72\n1.00\n98.00\n\n\ny2_horas_semanales\n45.00\nNA\nNA\nNA\n\n\n\n\n\n\n¿Por qué una regresión multivariada? Las dos variables objetivo están relacionadas: la correlación entre el logaritmo del ingreso y las horas trabajadas es 0.403. Modelarlas juntas permite analizar los efectos de las predictoras sobre ambas al mismo tiempo.",
+    "crumbs": [
+      "Pipeline de datos",
+      "3. Exploración"
+    ]
+  },
+  {
+    "objectID": "03-exploracion.html#variables-objetivo",
+    "href": "03-exploracion.html#variables-objetivo",
+    "title": "3. Exploración de los datos",
+    "section": "",
+    "text": "Código\nbase_modelo %&gt;%\n  select(`Y1: ln ingreso mensual` = y1_ln_ingreso_mensual,\n         `Y2: horas semanales` = y2_horas_semanales) %&gt;%\n  pivot_longer(everything()) %&gt;%\n  ggplot(aes(value)) +\n  geom_histogram(bins = 60, fill = \"#2F5496\") +\n  facet_wrap(~ name, scales = \"free\") +\n  labs(x = NULL, y = \"Personas\")\n\n\n\n\n\n\n\n\nFigura 1: Distribución de las dos variables objetivo\n\n\n\n\n\n\n\nCódigo\nbase_modelo %&gt;%\n  summarise(across(all_of(objetivos),\n                   list(media = mean, mediana = median, de = sd, min = min, max = max))) %&gt;%\n  pivot_longer(everything(), names_to = c(\"variable\", \".value\"),\n               names_pattern = \"(y[12]_.*)_(media|mediana|de|min|max)\") %&gt;%\n  mutate(across(where(is.numeric), ~ round(.x, 2)))\n\n\n\n\n\n\nvariable\nmedia\nde\nmin\nmax\n\n\n\n\ny1_ln_ingreso_mensual\n6.92\n0.91\n1.61\n10.46\n\n\ny1_ln_ingreso_mensual\n7.00\nNA\nNA\nNA\n\n\ny2_horas_semanales\n42.36\n16.72\n1.00\n98.00\n\n\ny2_horas_semanales\n45.00\nNA\nNA\nNA\n\n\n\n\n\n\n¿Por qué una regresión multivariada? Las dos variables objetivo están relacionadas: la correlación entre el logaritmo del ingreso y las horas trabajadas es 0.403. Modelarlas juntas permite analizar los efectos de las predictoras sobre ambas al mismo tiempo.",
+    "crumbs": [
+      "Pipeline de datos",
+      "3. Exploración"
+    ]
+  },
+  {
+    "objectID": "03-exploracion.html#relación-con-las-principales-predictoras",
+    "href": "03-exploracion.html#relación-con-las-principales-predictoras",
+    "title": "3. Exploración de los datos",
+    "section": "3.2 Relación con las principales predictoras",
+    "text": "3.2 Relación con las principales predictoras\n\n\nCódigo\nbase_modelo %&gt;%\n  group_by(anios_educ) %&gt;%\n  summarise(`Ingreso mensual promedio (S/)` = mean(exp(y1_ln_ingreso_mensual)),\n            `Horas semanales promedio` = mean(y2_horas_semanales), n = n()) %&gt;%\n  filter(n &gt;= 100) %&gt;%\n  pivot_longer(-c(anios_educ, n)) %&gt;%\n  ggplot(aes(anios_educ, value)) +\n  geom_line(color = \"#2F5496\") + geom_point(color = \"#2F5496\") +\n  facet_wrap(~ name, scales = \"free_y\") +\n  labs(x = \"Años de educación\", y = NULL)\n\n\n\n\n\n\n\n\nFigura 2: Ingreso y horas según años de educación\n\n\n\n\n\n\n\nCódigo\nbase_modelo %&gt;%\n  group_by(anio) %&gt;%\n  summarise(`Asalariados` = n(),\n            `Ingreso mensual promedio (S/)` = mean(exp(y1_ln_ingreso_mensual))) %&gt;%\n  pivot_longer(-anio) %&gt;%\n  ggplot(aes(factor(anio), value, fill = anio == 2020)) +\n  geom_col() +\n  facet_wrap(~ name, scales = \"free_y\") +\n  scale_fill_manual(values = c(`FALSE` = \"#2F5496\", `TRUE` = \"#C55A11\"), guide = \"none\") +\n  scale_y_continuous(labels = scales::label_comma()) +\n  labs(x = NULL, y = NULL) +\n  theme(axis.text.x = element_text(angle = 90, vjust = 0.5))\n\n\n\n\n\n\n\n\nFigura 3: Asalariados e ingreso mensual promedio por año (2020 en naranja)\n\n\n\n\n\n\n\nCódigo\nbase_modelo %&gt;%\n  select(mujer, urbano, sector_publico, afiliado_pensiones, all_of(objetivos)) %&gt;%\n  pivot_longer(c(mujer, urbano, sector_publico, afiliado_pensiones), names_to = \"variable\", values_to = \"valor\") %&gt;%\n  group_by(variable, valor) %&gt;%\n  summarise(personas = n(),\n            ingreso_mensual = round(mean(exp(y1_ln_ingreso_mensual))),\n            horas_semanales = round(mean(y2_horas_semanales), 1), .groups = \"drop\")\n\n\n\n\n\n\nvariable\nvalor\npersonas\ningreso_mensual\nhoras_semanales\n\n\n\n\nafiliado_pensiones\n0\n138782\n822\n39.7\n\n\nafiliado_pensiones\n1\n149459\n2005\n44.8\n\n\nmujer\n0\n171747\n1546\n44.0\n\n\nmujer\n1\n116494\n1273\n39.9\n\n\nsector_publico\n0\n227234\n1212\n42.9\n\n\nsector_publico\n1\n61007\n2268\n40.2\n\n\nurbano\n0\n61829\n873\n38.0\n\n\nurbano\n1\n226412\n1589\n43.5",
+    "crumbs": [
+      "Pipeline de datos",
+      "3. Exploración"
+    ]
+  },
+  {
+    "objectID": "05-validacion.html",
+    "href": "05-validacion.html",
+    "title": "5. Validación",
+    "section": "",
+    "text": "Se usan tres métricas de yardstick (tidymodels):\nCada métrica se calcula por separado para las dos variables objetivo: un buen ajuste en el ingreso no garantiza un buen ajuste en las horas.",
+    "crumbs": [
+      "Modelos predictivos",
+      "5. Validación"
+    ]
+  },
+  {
+    "objectID": "05-validacion.html#comparación-de-modelos",
+    "href": "05-validacion.html#comparación-de-modelos",
+    "title": "5. Validación",
+    "section": "5.1 Comparación de modelos",
+    "text": "5.1 Comparación de modelos\n\n\nCódigo\nmetricas_prueba %&gt;%\n  filter(metrica %in% c(\"rsq\", \"rmse\")) %&gt;%\n  mutate(objetivo = etiqueta_obj[objetivo],\n         metrica = if_else(metrica == \"rsq\", \"R²\", \"RMSE\")) %&gt;%\n  ggplot(aes(modelo, valor, fill = modelo)) +\n  geom_col(show.legend = FALSE, width = 0.7) +\n  geom_text(aes(label = round(valor, 3)), vjust = -0.4, size = 3.5) +\n  # cada panel con su propia escala: el RMSE del ingreso (~0.6) y el de las horas (~15) no se mezclan\n  facet_wrap(vars(objetivo, metrica), scales = \"free_y\", nrow = 2,\n             labeller = label_wrap_gen(multi_line = FALSE)) +\n  # 15 % de espacio sobre la barra más alta para que las etiquetas no se corten\n  scale_y_continuous(expand = expansion(mult = c(0, 0.15))) +\n  scale_x_discrete(labels = c(lineal = \"Lineal\", elastic_net = \"Elastic Net\", random_forest = \"Random Forest\")) +\n  scale_fill_manual(values = c(lineal = \"#8FAADC\", elastic_net = \"#2F5496\", random_forest = \"#C55A11\")) +\n  labs(x = NULL, y = NULL) +\n  theme(strip.text = element_text(face = \"bold\"))\n\n\n\n\n\n\n\n\nFigura 1: R² y RMSE en el conjunto de prueba por modelo y variable objetivo\n\n\n\n\n\n\n\nCódigo\nmejores &lt;- metricas_prueba %&gt;%\n  filter(metrica == \"rmse\") %&gt;%\n  group_by(objetivo) %&gt;%\n  slice_min(valor, n = 1) %&gt;%\n  select(objetivo, mejor_modelo = modelo, rmse_prueba = valor)\nguardar_tabla(mejores, \"mejor_modelo\")\nmejores %&gt;% mutate(rmse_prueba = round(rmse_prueba, 4))\n\n\n\n\n\n\nobjetivo\nmejor_modelo\nrmse_prueba\n\n\n\n\ny1_ln_ingreso_mensual\nrandom_forest\n0.5773\n\n\ny2_horas_semanales\nrandom_forest\n14.5288",
+    "crumbs": [
+      "Modelos predictivos",
+      "5. Validación"
+    ]
+  },
+  {
+    "objectID": "05-validacion.html#hay-sobreajuste-validación-cruzada-frente-a-prueba",
+    "href": "05-validacion.html#hay-sobreajuste-validación-cruzada-frente-a-prueba",
+    "title": "5. Validación",
+    "section": "5.2 ¿Hay sobreajuste? Validación cruzada frente a prueba",
+    "text": "5.2 ¿Hay sobreajuste? Validación cruzada frente a prueba\nSi las métricas de la validación cruzada y las de la prueba son parecidas, el modelo generaliza bien a datos nuevos.\n\n\nCódigo\nmetricas_cv %&gt;%\n  select(objetivo, modelo, metrica, validacion_cruzada = media) %&gt;%\n  inner_join(metricas_prueba %&gt;% rename(prueba = valor), by = c(\"objetivo\", \"modelo\", \"metrica\")) %&gt;%\n  mutate(diferencia = prueba - validacion_cruzada,\n         across(where(is.numeric), ~ round(.x, 4))) %&gt;%\n  arrange(objetivo, metrica, modelo)\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nobjetivo\nmodelo\nmetrica\nvalidacion_cruzada\nprueba\ndiferencia\n\n\n\n\ny1_ln_ingreso_mensual\nelastic_net\nmae\n0.4510\n0.4495\n-0.0015\n\n\ny1_ln_ingreso_mensual\nlineal\nmae\n0.4512\n0.4497\n-0.0015\n\n\ny1_ln_ingreso_mensual\nrandom_forest\nmae\n0.4245\n0.4173\n-0.0072\n\n\ny1_ln_ingreso_mensual\nelastic_net\nrmse\n0.6130\n0.6088\n-0.0042\n\n\ny1_ln_ingreso_mensual\nlineal\nrmse\n0.6128\n0.6086\n-0.0042\n\n\ny1_ln_ingreso_mensual\nrandom_forest\nrmse\n0.5884\n0.5773\n-0.0111\n\n\ny1_ln_ingreso_mensual\nelastic_net\nrsq\n0.5553\n0.5596\n0.0042\n\n\ny1_ln_ingreso_mensual\nlineal\nrsq\n0.5556\n0.5598\n0.0042\n\n\ny1_ln_ingreso_mensual\nrandom_forest\nrsq\n0.5914\n0.6048\n0.0134\n\n\ny2_horas_semanales\nelastic_net\nmae\n11.3785\n11.3415\n-0.0370\n\n\ny2_horas_semanales\nlineal\nmae\n11.3791\n11.3409\n-0.0382\n\n\ny2_horas_semanales\nrandom_forest\nmae\n10.8300\n10.7346\n-0.0953\n\n\ny2_horas_semanales\nelastic_net\nrmse\n15.0871\n15.0666\n-0.0205\n\n\ny2_horas_semanales\nlineal\nrmse\n15.0874\n15.0651\n-0.0223\n\n\ny2_horas_semanales\nrandom_forest\nrmse\n14.6276\n14.5288\n-0.0988\n\n\ny2_horas_semanales\nelastic_net\nrsq\n0.1896\n0.1878\n-0.0017\n\n\ny2_horas_semanales\nlineal\nrsq\n0.1895\n0.1880\n-0.0016\n\n\ny2_horas_semanales\nrandom_forest\nrsq\n0.2392\n0.2453\n0.0062",
+    "crumbs": [
+      "Modelos predictivos",
+      "5. Validación"
+    ]
+  },
+  {
+    "objectID": "05-validacion.html#valores-reales-frente-a-predichos",
+    "href": "05-validacion.html#valores-reales-frente-a-predichos",
+    "title": "5. Validación",
+    "section": "5.3 Valores reales frente a predichos",
+    "text": "5.3 Valores reales frente a predichos\n\n\nCódigo\nnombres_modelo &lt;- c(lineal = \"Lineal\", elastic_net = \"Elastic Net\", random_forest = \"Random Forest\")\npredicciones %&gt;%\n  mutate(objetivo = etiqueta_obj[objetivo],\n         modelo = factor(nombres_modelo[modelo], levels = nombres_modelo)) %&gt;%\n  ggplot(aes(real, .pred)) +\n  # mapa de densidad en vez de puntos: con miles de casos los puntos se tapan entre sí\n  geom_bin_2d(bins = 40) +\n  geom_abline(color = \"#C55A11\", linewidth = 0.8) +\n  # fila = variable objetivo, columna = modelo; cada fila con su propia escala\n  facet_wrap(vars(objetivo, modelo), scales = \"free\", ncol = 3,\n             labeller = label_wrap_gen(multi_line = FALSE)) +\n  scale_fill_gradient(low = \"#DCE6F2\", high = \"#1F3864\", trans = \"log10\",\n                      name = \"N.º de casos\") +\n  labs(x = \"Valor real\", y = \"Valor predicho\",\n       caption = \"La línea naranja marca la predicción perfecta (predicho = real).\") +\n  theme(strip.text = element_text(face = \"bold\"), legend.position = \"bottom\")\n\n\n\n\n\n\n\n\nFigura 2: Valores reales frente a predichos en el conjunto de prueba (muestra de 5 000 casos por modelo)",
+    "crumbs": [
+      "Modelos predictivos",
+      "5. Validación"
+    ]
+  },
+  {
+    "objectID": "05-validacion.html#residuos",
+    "href": "05-validacion.html#residuos",
+    "title": "5. Validación",
+    "section": "5.4 Residuos",
+    "text": "5.4 Residuos\n\n\nCódigo\npredicciones %&gt;%\n  mutate(residuo = real - .pred, objetivo = etiqueta_obj[objetivo]) %&gt;%\n  ggplot(aes(residuo, fill = modelo)) +\n  geom_density(alpha = 0.4) +\n  facet_wrap(~ objetivo, scales = \"free\") +\n  scale_fill_manual(values = c(lineal = \"#8FAADC\", elastic_net = \"#2F5496\", random_forest = \"#C55A11\")) +\n  labs(x = \"Residuo\", y = \"Densidad\", fill = \"Modelo\")\n\n\n\n\n\n\n\n\nFigura 3: Distribución de los residuos (real − predicho) en el conjunto de prueba",
+    "crumbs": [
+      "Modelos predictivos",
+      "5. Validación"
+    ]
+  },
+  {
+    "objectID": "07-mlops.html",
+    "href": "07-mlops.html",
+    "title": "7. MLOps",
+    "section": "",
+    "text": "MLOps (Machine Learning Operations) es el conjunto de prácticas para llevar un modelo del análisis a la operación y mantenerlo funcionando. En este proyecto se aplican cinco:",
+    "crumbs": [
+      "MLOps y datos abiertos",
+      "7. MLOps"
+    ]
+  },
+  {
+    "objectID": "07-mlops.html#modelo-final-por-variable-objetivo",
+    "href": "07-mlops.html#modelo-final-por-variable-objetivo",
+    "title": "7. MLOps",
+    "section": "7.1 Modelo final por variable objetivo",
+    "text": "7.1 Modelo final por variable objetivo\nSe despliega, para cada variable objetivo, el modelo con menor RMSE en el conjunto de prueba (ver Validación).\n\n\nCódigo\nmejores &lt;- read_csv(file.path(rutas$tablas, \"mejor_modelo.csv\"), show_col_types = FALSE)\nmetricas_prueba &lt;- read_csv(file.path(rutas$tablas, \"metricas_prueba.csv\"), show_col_types = FALSE)\n\ndatos &lt;- leer_base_modelo()\np     &lt;- particionar(datos)          # misma partición que en el modelado (misma semilla)\n\najustes &lt;- map(set_names(objetivos), function(obj) {\n  modelo &lt;- mejores$mejor_modelo[mejores$objetivo == obj]\n  ajustar_workflow(obj, modelo, p$entrenamiento)\n})\nmejores\n\n\n\n\n\n\nobjetivo\nmejor_modelo\nrmse_prueba\n\n\n\n\ny1_ln_ingreso_mensual\nrandom_forest\n0.5773356\n\n\ny2_horas_semanales\nrandom_forest\n14.5287931",
+    "crumbs": [
+      "MLOps y datos abiertos",
+      "7. MLOps"
+    ]
+  },
+  {
+    "objectID": "07-mlops.html#registro-y-versionado-de-modelos",
+    "href": "07-mlops.html#registro-y-versionado-de-modelos",
+    "title": "7. MLOps",
+    "section": "7.2 Registro y versionado de modelos",
+    "text": "7.2 Registro y versionado de modelos\nCada modelo se guarda en un registro (outputs/modelos/registro/) con su versión y sus metadatos: el tipo de modelo, las métricas de prueba, la semilla y la fecha. Cada vez que se vuelve a entrenar se crea una versión nueva y las anteriores se conservan, así se puede volver a cualquiera de ellas.\n\n\nCódigo\nregistro &lt;- board_folder(file.path(rutas$modelos, \"registro\"), versioned = TRUE)\n\nwalk(objetivos, function(obj) {\n  modelo &lt;- mejores$mejor_modelo[mejores$objetivo == obj]\n  v &lt;- vetiver_model(\n    ajustes[[obj]],\n    model_name = paste0(\"enaho_\", obj),\n    description = paste(\"Modelo\", modelo, \"para\", obj, \"- ENAHO 2014-2025, asalariados\"),\n    metadata = list(\n      modelo   = modelo,\n      semilla  = semilla,\n      metricas = metricas_prueba %&gt;% filter(objetivo == obj, modelo == !!modelo) %&gt;%\n        select(metrica, valor) %&gt;% deframe() %&gt;% as.list()))\n  vetiver_pin_write(registro, v)\n})\n\nversiones &lt;- map_dfr(objetivos, function(obj) {\n  pin_versions(registro, paste0(\"enaho_\", obj)) %&gt;% mutate(modelo = paste0(\"enaho_\", obj))\n})\nguardar_tabla(versiones, \"registro_versiones_modelos\")\nversiones\n\n\n\n\n\n\n\n\n\n\n\n\nversion\ncreated\nhash\nmodelo\n\n\n\n\n20261119T163939Z-57ab4\n2026-11-19 11:39:39\n57ab4\nenaho_y1_ln_ingreso_mensual\n\n\n20261119T163948Z-c003a\n2026-11-19 11:39:48\nc003a\nenaho_y2_horas_semanales",
+    "crumbs": [
+      "MLOps y datos abiertos",
+      "7. MLOps"
+    ]
+  },
+  {
+    "objectID": "07-mlops.html#despliegue-del-modelo-como-api",
+    "href": "07-mlops.html#despliegue-del-modelo-como-api",
+    "title": "7. MLOps",
+    "section": "7.3 Despliegue del modelo como API",
+    "text": "7.3 Despliegue del modelo como API\nvetiver genera automáticamente una API REST con plumber. Otra aplicación (por ejemplo, un sistema web) puede enviarle los datos de una persona y recibir la predicción de su ingreso o de sus horas.\n\n\nCódigo\ndir.create(here(\"api\"), showWarnings = FALSE)\nwalk(objetivos, function(obj) {\n  vetiver_write_plumber(registro, paste0(\"enaho_\", obj),\n                        file = here(\"api\", paste0(\"plumber_\", obj, \".R\")))\n})\nlist.files(here(\"api\"))\n\n\n[1] \"plumber_y1_ln_ingreso_mensual.R\" \"plumber_y2_horas_semanales.R\"   \n\n\nPara levantar la API del ingreso en tu computadora:\nplumber::pr(\"api/plumber_y1_ln_ingreso_mensual.R\") |&gt; plumber::pr_run(port = 8000)\n# Documentación interactiva: http://127.0.0.1:8000/__docs__/",
+    "crumbs": [
+      "MLOps y datos abiertos",
+      "7. MLOps"
+    ]
+  },
+  {
+    "objectID": "07-mlops.html#monitoreo-del-desempeño-por-año",
+    "href": "07-mlops.html#monitoreo-del-desempeño-por-año",
+    "title": "7. MLOps",
+    "section": "7.4 Monitoreo del desempeño por año",
+    "text": "7.4 Monitoreo del desempeño por año\nEn producción, un modelo puede perder precisión con el tiempo si cambian las condiciones del mercado laboral (data drift). Aquí se simula ese monitoreo midiendo el desempeño en el conjunto de prueba año por año.\n\n\nCódigo\nmonitoreo &lt;- map_dfr(objetivos, function(obj) {\n  p$prueba %&gt;%\n    mutate(.pred = predict(ajustes[[obj]], select(p$prueba, all_of(predictoras)))$.pred,\n           real  = .data[[obj]],\n           fecha = as.Date(paste0(anio, \"-07-01\"))) %&gt;%\n    vetiver_compute_metrics(fecha, \"year\", real, .pred, metric_set = metricas) %&gt;%\n    mutate(objetivo = obj)\n})\nguardar_tabla(monitoreo, \"monitoreo_por_anio\")\n\n\n\n\nCódigo\nmonitoreo %&gt;%\n  mutate(objetivo = recode(objetivo, y1_ln_ingreso_mensual = \"Y1: ln ingreso mensual\",\n                           y2_horas_semanales = \"Y2: horas semanales\")) %&gt;%\n  ggplot(aes(.index, .estimate)) +\n  geom_line(color = \"#2F5496\") +\n  geom_point(aes(color = lubridate::year(.index) == 2020), size = 2, show.legend = FALSE) +\n  scale_color_manual(values = c(`FALSE` = \"#2F5496\", `TRUE` = \"#C55A11\")) +\n  facet_grid(.metric ~ objetivo, scales = \"free_y\") +\n  labs(x = NULL, y = NULL)\n\n\n\n\n\n\n\n\nFigura 1: Desempeño del modelo final por año en el conjunto de prueba\n\n\n\n\n\nSi en un año el RMSE sube o el R² baja mucho respecto a los demás, el modelo debe revisarse o reentrenarse con datos nuevos. 2020 aparece en naranja porque la encuesta se aplicó en parte por teléfono durante la pandemia.",
+    "crumbs": [
+      "MLOps y datos abiertos",
+      "7. MLOps"
+    ]
+  },
+  {
+    "objectID": "07-mlops.html#automatización-con-github-actions-cicd",
+    "href": "07-mlops.html#automatización-con-github-actions-cicd",
+    "title": "7. MLOps",
+    "section": "7.5 Automatización con GitHub Actions (CI/CD)",
+    "text": "7.5 Automatización con GitHub Actions (CI/CD)\nEl archivo .github/workflows/publicar.yml publica el sitio en GitHub Pages cada vez que se sube un cambio a la rama main. Gracias a freeze: auto, GitHub reutiliza los resultados guardados en _freeze/ y no necesita los datos ni volver a entrenar los modelos.\non:\n  push:\n    branches: main\njobs:\n  publicar:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: quarto-dev/quarto-actions/setup@v2\n      - uses: quarto-dev/quarto-actions/publish@v2\n        with:\n          target: gh-pages",
+    "crumbs": [
+      "MLOps y datos abiertos",
+      "7. MLOps"
+    ]
+  },
+  {
+    "objectID": "07-mlops.html#ciclo-completo",
+    "href": "07-mlops.html#ciclo-completo",
+    "title": "7. MLOps",
+    "section": "7.6 Ciclo completo",
+    "text": "7.6 Ciclo completo\n\n\nCódigo\nflowchart LR\n  A[\"Datos nuevos&lt;br/&gt;(ENAHO de otro año)\"] --&gt; B[\"quarto render&lt;br/&gt;pipeline completo\"]\n  B --&gt; C[\"Registro de modelos&lt;br/&gt;nueva versión\"]\n  C --&gt; D[\"API plumber&lt;br/&gt;predicciones\"]\n  C --&gt; E[\"PostgreSQL&lt;br/&gt;resultados\"]\n  D --&gt; F[\"Monitoreo&lt;br/&gt;métricas por año\"]\n  F -- \"si el desempeño baja\" --&gt; B\n  B --&gt; G[\"git push\"] --&gt; H[\"GitHub Actions&lt;br/&gt;publica el sitio\"]\n\n\n\n\n\n\nflowchart LR\n  A[\"Datos nuevos&lt;br/&gt;(ENAHO de otro año)\"] --&gt; B[\"quarto render&lt;br/&gt;pipeline completo\"]\n  B --&gt; C[\"Registro de modelos&lt;br/&gt;nueva versión\"]\n  C --&gt; D[\"API plumber&lt;br/&gt;predicciones\"]\n  C --&gt; E[\"PostgreSQL&lt;br/&gt;resultados\"]\n  D --&gt; F[\"Monitoreo&lt;br/&gt;métricas por año\"]\n  F -- \"si el desempeño baja\" --&gt; B\n  B --&gt; G[\"git push\"] --&gt; H[\"GitHub Actions&lt;br/&gt;publica el sitio\"]",
+    "crumbs": [
+      "MLOps y datos abiertos",
+      "7. MLOps"
+    ]
+  },
+  {
+    "objectID": "09-disponibilidad-datos.html",
+    "href": "09-disponibilidad-datos.html",
+    "title": "9. Disponibilidad de datos y código",
+    "section": "",
+    "text": "Texto para el artículo (va después de la sección de Resultados; completar los enlaces una vez publicados):\nLos microdatos originales provienen de la Encuesta Nacional de Hogares (ENAHO) 2014–2025 del Instituto Nacional de Estadística e Informática (INEI), módulos 200, 300 y 500, disponibles públicamente en el portal de microdatos del INEI (https://proyectos.inei.gob.pe/microdatos/). La base procesada utilizada en el análisis (base_modelo.csv.gz, 288 241 asalariados, 2 variables objetivo y 19 predictoras) y su diccionario de variables están disponibles en Zenodo: https://doi.org/10.5281/zenodo.XXXXXXX. El código del pipeline (integración, limpieza, modelado y validación) está disponible en GitHub: https://github.com/USUARIO/enaho-regresion-multivariada, archivado con el DOI https://doi.org/10.5281/zenodo.YYYYYYY.",
+    "crumbs": [
+      "MLOps y datos abiertos",
+      "9. Disponibilidad de datos"
+    ]
+  },
+  {
+    "objectID": "09-disponibilidad-datos.html#disponibilidad-de-datos-data-availability",
+    "href": "09-disponibilidad-datos.html#disponibilidad-de-datos-data-availability",
+    "title": "9. Disponibilidad de datos y código",
+    "section": "",
+    "text": "Texto para el artículo (va después de la sección de Resultados; completar los enlaces una vez publicados):\nLos microdatos originales provienen de la Encuesta Nacional de Hogares (ENAHO) 2014–2025 del Instituto Nacional de Estadística e Informática (INEI), módulos 200, 300 y 500, disponibles públicamente en el portal de microdatos del INEI (https://proyectos.inei.gob.pe/microdatos/). La base procesada utilizada en el análisis (base_modelo.csv.gz, 288 241 asalariados, 2 variables objetivo y 19 predictoras) y su diccionario de variables están disponibles en Zenodo: https://doi.org/10.5281/zenodo.XXXXXXX. El código del pipeline (integración, limpieza, modelado y validación) está disponible en GitHub: https://github.com/USUARIO/enaho-regresion-multivariada, archivado con el DOI https://doi.org/10.5281/zenodo.YYYYYYY.",
+    "crumbs": [
+      "MLOps y datos abiertos",
+      "9. Disponibilidad de datos"
+    ]
+  },
+  {
+    "objectID": "09-disponibilidad-datos.html#qué-va-en-cada-plataforma",
+    "href": "09-disponibilidad-datos.html#qué-va-en-cada-plataforma",
+    "title": "9. Disponibilidad de datos y código",
+    "section": "¿Qué va en cada plataforma?",
+    "text": "¿Qué va en cada plataforma?\n\n\n\n\n\n\n\n\nPlataforma\nQué se publica\nPara qué\n\n\n\n\nGitHub\nSolo el código: .qmd, R/, _quarto.yml, renv.lock, README\nControl de versiones del código y publicación del sitio web (GitHub Pages)\n\n\nZenodo (primera opción)\nLos datos: base_modelo.csv.gz y diccionario_base_modelo.csv\nAsignar un DOI permanente para citar los datos en el artículo\n\n\nMendeley Data (segunda opción)\nLos mismos datos\nTambién asigna DOI\n\n\nDataverse (repositorio institucional)\nLos mismos datos\nIniciativa de código abierto que usan varias universidades para alojar datos de investigación\n\n\n\nLos datos no se suben a GitHub. Los archivos grandes no se manejan bien en Git, y GitHub no asigna un DOI a los datos.",
+    "crumbs": [
+      "MLOps y datos abiertos",
+      "9. Disponibilidad de datos"
+    ]
+  },
+  {
+    "objectID": "09-disponibilidad-datos.html#pasos-para-publicar-los-datos-en-zenodo",
+    "href": "09-disponibilidad-datos.html#pasos-para-publicar-los-datos-en-zenodo",
+    "title": "9. Disponibilidad de datos y código",
+    "section": "Pasos para publicar los datos en Zenodo",
+    "text": "Pasos para publicar los datos en Zenodo\n\nCrear una cuenta en https://zenodo.org (se puede entrar con la cuenta de GitHub).\nNew upload → subir:\n\ndatos/processed/base_modelo.csv.gz\ndatos/processed/diccionario_base_modelo.csv\n\nCompletar el formulario:\n\nResource type: Dataset.\nTitle: «Base de modelado ENAHO 2014–2025: ingreso y horas de los asalariados del Perú».\nCreators: los integrantes del grupo, con su afiliación (Universidad Nacional del Altiplano – Puno).\nDescription: fuente (INEI, ENAHO módulos 200, 300 y 500), población (asalariados ocupados), número de filas y variables, y enlace al repositorio de GitHub.\nLicense: Creative Commons Attribution 4.0 (CC BY 4.0).\nRelated works: el enlace al repositorio de GitHub (is supplemented by).\n\nPublish → Zenodo asigna el DOI (10.5281/zenodo.XXXXXXX).\nCopiar el DOI en esta página, en el README.md, en CITATION.cff y en la sección de disponibilidad de datos del artículo.",
+    "crumbs": [
+      "MLOps y datos abiertos",
+      "9. Disponibilidad de datos"
+    ]
+  },
+  {
+    "objectID": "09-disponibilidad-datos.html#pasos-para-archivar-el-código-con-doi-github-zenodo",
+    "href": "09-disponibilidad-datos.html#pasos-para-archivar-el-código-con-doi-github-zenodo",
+    "title": "9. Disponibilidad de datos y código",
+    "section": "Pasos para archivar el código con DOI (GitHub + Zenodo)",
+    "text": "Pasos para archivar el código con DOI (GitHub + Zenodo)\n\nEn Zenodo: Account → GitHub y activar el repositorio enaho-regresion-multivariada.\nEn GitHub: crear una Release (por ejemplo, v1.0.0).\nZenodo archiva automáticamente esa versión del código y le asigna su propio DOI.",
+    "crumbs": [
+      "MLOps y datos abiertos",
+      "9. Disponibilidad de datos"
+    ]
+  },
+  {
+    "objectID": "09-disponibilidad-datos.html#cómo-citar",
+    "href": "09-disponibilidad-datos.html#cómo-citar",
+    "title": "9. Disponibilidad de datos y código",
+    "section": "Cómo citar",
+    "text": "Cómo citar\nVer el archivo CITATION.cff del repositorio (GitHub muestra el botón Cite this repository).",
+    "crumbs": [
+      "MLOps y datos abiertos",
+      "9. Disponibilidad de datos"
+    ]
+  }
+]

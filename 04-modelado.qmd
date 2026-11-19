@@ -1,0 +1,132 @@
+---
+title: "4. Modelado"
+description: "Regresión multivariada y comparación de modelos predictivos con tidymodels"
+---
+
+```{r}
+#| label: setup
+#| include: false
+source(here::here("R", "00_config.R"))
+source(here::here("R", "03_funciones_modelado.R"))
+datos <- leer_base_modelo()
+```
+
+## 4.1 Diseño
+
+- **Variables objetivo:** `r paste(objetivos, collapse = " y ")`.
+- **Predictoras (19):** `r paste(predictoras, collapse = ", ")`.
+- **Partición:** 80 % entrenamiento y 20 % prueba, con semilla fija (`r semilla`) para que el resultado sea reproducible.
+- **Validación cruzada:** `r v_folds` particiones (*folds*) sobre una muestra de `r fmt(n_validacion_cruzada)` personas del entrenamiento.
+- **Modelos:**
+  1. **Regresión multivariada (MCO):** estima las dos variables objetivo a la vez con las mismas predictoras. Es el modelo principal del trabajo.
+  2. **Regresión lineal** para cada objetivo, como línea base.
+  3. **Elastic Net** (`glmnet`): regresión regularizada que combina Ridge y Lasso.
+  4. **Random Forest** (`ranger`): modelo no lineal basado en árboles. Para el ajuste final usa una muestra de `r fmt(n_entrenamiento_rf)` personas, para limitar el tiempo de cálculo.
+
+```{r}
+#| label: particion
+p             <- particionar(datos)
+entrenamiento <- p$entrenamiento
+prueba        <- p$prueba
+
+set.seed(semilla)
+muestra_cv <- slice_sample(entrenamiento, n = min(n_validacion_cruzada, nrow(entrenamiento)))
+
+guardar_tabla(tibble(conjunto = c("total", "entrenamiento", "prueba", "muestra para validación cruzada"),
+                     personas = c(nrow(datos), nrow(entrenamiento), nrow(prueba), nrow(muestra_cv))),
+              "particion")
+```
+
+## 4.2 Regresión multivariada
+
+Se estima un solo modelo lineal con las dos variables objetivo, con la fórmula `cbind(Y1, Y2) ~ predictoras`. La prueba de **Pillai** indica si cada predictora tiene un efecto conjunto sobre el ingreso y las horas.
+
+```{r}
+#| label: multivariada
+modelo_mv <- lm(formula_multivariada, data = entrenamiento)
+
+coef_mv <- broom::tidy(modelo_mv)
+guardar_tabla(coef_mv, "coeficientes_multivariado")
+
+pillai <- anova(modelo_mv) %>%
+  as_tibble(rownames = "termino") %>%
+  filter(termino != "(Intercept)", termino != "Residuals")
+guardar_tabla(pillai, "pillai_multivariado")
+
+cor_residuos <- cor(residuals(modelo_mv))[1, 2]
+guardar_tabla(tibble(correlacion_residuos_y1_y2 = cor_residuos), "correlacion_residuos")
+
+pillai %>% mutate(across(where(is.numeric), ~ signif(.x, 4)))
+```
+
+La correlación entre los residuos de Y1 y Y2 es **`r round(cor_residuos, 3)`**: una vez consideradas las predictoras, el ingreso y las horas siguen relacionados. Esto justifica analizarlos de forma conjunta.
+
+## 4.3 Validación cruzada de los modelos predictivos
+
+```{r}
+#| label: validacion-cruzada
+combinaciones <- expand_grid(objetivo = objetivos, modelo = names(modelos))
+
+evaluar_cv <- function(objetivo, modelo) {
+  d <- select(muestra_cv, all_of(c(objetivo, predictoras)))
+  set.seed(semilla)
+  folds <- vfold_cv(d, v = v_folds)
+  workflow() %>%
+    add_recipe(receta(objetivo, d)) %>%
+    add_model(modelos[[modelo]]) %>%
+    fit_resamples(folds, metrics = metricas) %>%
+    collect_metrics() %>%
+    mutate(objetivo = objetivo, modelo = modelo)
+}
+
+metricas_cv <- pmap_dfr(combinaciones, evaluar_cv) %>%
+  select(objetivo, modelo, metrica = .metric, media = mean, error_estandar = std_err)
+guardar_tabla(metricas_cv, "metricas_validacion_cruzada")
+
+metricas_cv %>% mutate(across(where(is.numeric), ~ round(.x, 4)))
+```
+
+## 4.4 Ajuste final y evaluación en el conjunto de prueba
+
+Cada modelo se entrena con el conjunto de entrenamiento y se evalúa en el 20 % de prueba, que no se usó para entrenar.
+
+```{r}
+#| label: ajuste-final
+ajustar_y_probar <- function(objetivo, modelo) {
+  ajuste <- ajustar_workflow(objetivo, modelo, entrenamiento)
+
+  pred <- predict(ajuste, select(prueba, all_of(predictoras))) %>%
+    mutate(real = prueba[[objetivo]], objetivo = objetivo, modelo = modelo)
+
+  importancia <- if (modelo == "random_forest") {
+    imp <- extract_fit_engine(ajuste)$variable.importance
+    tibble(objetivo = objetivo, variable = names(imp), importancia = unname(imp))
+  } else NULL
+
+  list(pred = pred, importancia = importancia)
+}
+
+resultados <- pmap(combinaciones, ajustar_y_probar)
+
+predicciones <- map_dfr(resultados, "pred")
+metricas_prueba <- predicciones %>%
+  group_by(objetivo, modelo) %>%
+  metricas(truth = real, estimate = .pred) %>%
+  select(objetivo, modelo, metrica = .metric, valor = .estimate)
+guardar_tabla(metricas_prueba, "metricas_prueba")
+
+set.seed(semilla)
+predicciones %>%
+  group_by(objetivo, modelo) %>%
+  slice_sample(n = 5000) %>%
+  ungroup() %>%
+  guardar_tabla("predicciones_prueba_muestra")
+
+map_dfr(resultados, "importancia") %>% guardar_tabla("importancia_random_forest")
+
+metricas_prueba %>%
+  pivot_wider(names_from = metrica, values_from = valor) %>%
+  mutate(across(where(is.numeric), ~ round(.x, 4)))
+```
+
+Los resultados se guardan en `outputs/tablas/`. A partir de ellos se construyen las páginas de [validación](05-validacion.qmd), [interpretabilidad](06-interpretabilidad.qmd) y el [dashboard](dashboard.qmd).

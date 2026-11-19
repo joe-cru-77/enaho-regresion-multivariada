@@ -1,0 +1,34 @@
+# ---- Datos: no se suben a GitHub (se publican en Zenodo) ----
+datos/raw/*
+datos/interim/*
+datos/processed/*
+!datos/**/.gitkeep
+!datos/README.md
+
+# ---- Credenciales ----
+.Renviron
+.env
+
+# ---- R / RStudio ----
+.Rproj.user/
+.Rhistory
+.RData
+.Ruserdata
+renv/library/
+renv/staging/
+
+# ---- Quarto ----
+/.quarto/
+*_files/
+*.html
+!docs/**/*.html
+
+# ---- Modelos grandes ----
+outputs/modelos/*
+!outputs/modelos/.gitkeep
+
+# ---- Sistema ----
+.DS_Store
+Thumbs.db
+
+**/*.quarto_ipynb

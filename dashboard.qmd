@@ -1,0 +1,454 @@
+---
+title: "Regresión multivariada · ENAHO 2014–2025"
+author: "Ciencia de Datos – FINESI, UNA Puno"
+format:
+  dashboard:
+    orientation: rows
+    scrolling: true          # la página se desplaza: cada gráfico tiene espacio suficiente
+    logo: imagenes/logo_finesi.png
+    css: dashboard.css
+execute:
+  echo: false                # en el dashboard solo se muestran resultados, nunca el código
+  warning: false
+  message: false
+---
+
+```{r}
+#| label: setup
+#| include: false
+source(here::here("R", "00_config.R"))
+leer <- function(n) read_csv(file.path(rutas$tablas, paste0(n, ".csv")), show_col_types = FALSE)
+
+por_anio        <- leer("base_modelo_por_anio")
+embudo          <- leer("embudo")
+metricas_prueba <- leer("metricas_prueba")
+metricas_cv     <- leer("metricas_validacion_cruzada")
+importancia     <- leer("importancia_random_forest")
+coef_mv         <- leer("coeficientes_multivariado")
+pillai          <- leer("pillai_multivariado")
+
+# ---- Nombres legibles ----
+nombre_obj <- c(y1_ln_ingreso_mensual = "Ingreso mensual (Y1)",
+                y2_horas_semanales    = "Horas semanales (Y2)")
+nombre_modelo  <- c(lineal = "Lineal", elastic_net = "Elastic Net", random_forest = "Random Forest")
+nombre_metrica <- c(rsq = "R² (más alto = mejor)", rmse = "RMSE (más bajo = mejor)",
+                    mae = "MAE (más bajo = mejor)")
+etiquetas <- c(
+  mujer = "Mujer", edad = "Edad", edad2 = "Edad²", anios_educ = "Años de educación",
+  lengua_nativa = "Lengua nativa", etnia = "Etnia", casado_conviviente = "Casado/conviviente",
+  jefe_hogar = "Jefe de hogar", tam_hogar = "Tamaño del hogar", urbano = "Área urbana",
+  region = "Región", cat_ocupacional = "Categoría ocupacional", sector_publico = "Sector público",
+  tam_empresa = "Tamaño de la empresa", contrato = "Tipo de contrato",
+  afiliado_pensiones = "Afiliado a pensiones", rama = "Rama de actividad",
+  grupo_ocupacional = "Grupo ocupacional", anio = "Año de la encuesta")
+etiqueta <- function(x) coalesce(unname(etiquetas[x]), x)
+
+# Las dummies del Random Forest (p. ej. "rama_X3") se agrupan en su variable original
+variable_original <- function(v) map_chr(v, function(x) {
+  m <- predictoras[x == predictoras | startsWith(x, paste0(predictoras, "_"))]
+  if (length(m) == 0) x else m[which.max(nchar(m))]
+})
+
+# ---- Colores y tema de los gráficos ----
+col_modelo <- c(Lineal = "#8FAADC", `Elastic Net` = "#2F5496", `Random Forest` = "#C55A11")
+azul <- "#2F5496"; naranja <- "#C55A11"
+theme_set(theme_minimal(base_size = 13) +
+            theme(panel.grid.minor = element_blank(),
+                  strip.text = element_text(face = "bold", size = 13),
+                  axis.text = element_text(size = 11.5),
+                  plot.margin = margin(5, 15, 5, 5)))
+
+# ---- Cifras que se citan en los textos ----
+met <- function(obj, mod, m) metricas_prueba$valor[metricas_prueba$objetivo == obj &
+                                                    metricas_prueba$modelo == mod &
+                                                    metricas_prueba$metrica == m]
+mejor <- function(obj) metricas_prueba %>%
+  filter(objetivo == obj, metrica == "rsq") %>% slice_max(valor, n = 1, with_ties = FALSE)
+m1 <- mejor("y1_ln_ingreso_mensual"); m2 <- mejor("y2_horas_semanales")
+r2_lin_y1 <- met("y1_ln_ingreso_mensual", "lineal", "rsq")
+r2_lin_y2 <- met("y2_horas_semanales", "lineal", "rsq")
+mae_y1 <- met("y1_ln_ingreso_mensual", m1$modelo, "mae")
+mae_y2 <- met("y2_horas_semanales",   m2$modelo, "mae")
+
+coef_de <- function(resp, t) coef_mv$estimate[coef_mv$response == resp & coef_mv$term == t]
+pct <- function(b) 100 * (exp(b) - 1)
+y1 <- "y1_ln_ingreso_mensual"; y2 <- "y2_horas_semanales"
+ret_educ   <- pct(coef_de(y1, "anios_educ")); h_educ  <- coef_de(y2, "anios_educ")
+brecha     <- pct(coef_de(y1, "mujer"));      h_mujer <- coef_de(y2, "mujer")
+ef_publico <- pct(coef_de(y1, "sector_publico")); h_publico <- coef_de(y2, "sector_publico")
+ef_pension <- pct(coef_de(y1, "afiliado_pensiones"))
+mas_menos  <- function(x) if (x < 0) "menos" else "más"
+
+pillai_ord <- pillai %>%
+  filter(!is.na(Pillai)) %>%
+  mutate(variable = etiqueta(str_remove_all(termino, "factor\\(|\\)"))) %>%
+  arrange(desc(Pillai))
+
+imp_agrupada <- importancia %>%
+  mutate(variable = variable_original(variable)) %>%
+  group_by(objetivo, variable) %>%
+  summarise(importancia = sum(importancia), .groups = "drop_last") %>%
+  mutate(porcentaje = 100 * importancia / sum(importancia)) %>%
+  arrange(desc(porcentaje), .by_group = TRUE) %>%
+  ungroup()
+top_imp <- function(obj, k) imp_agrupada %>% filter(objetivo == obj) %>% slice(k)
+
+comparacion <- metricas_cv %>%
+  select(objetivo, modelo, metrica, cv = media) %>%
+  inner_join(metricas_prueba, by = c("objetivo", "modelo", "metrica")) %>%
+  mutate(dif = valor - cv)
+max_dif_r2 <- comparacion %>% filter(metrica == "rsq") %>% pull(dif) %>% abs() %>% max()
+
+a2020   <- por_anio %>% filter(anio == 2020)
+resto   <- por_anio %>% filter(anio != 2020)
+
+# ---- Funciones de gráficos ----
+grafico_metricas <- function(obj) {
+  metricas_prueba %>%
+    filter(objetivo == obj) %>%
+    mutate(metrica = factor(nombre_metrica[metrica], levels = nombre_metrica),
+           modelo = factor(nombre_modelo[modelo], levels = rev(nombre_modelo))) %>%
+    ggplot(aes(valor, modelo, fill = modelo)) +
+    geom_col(width = 0.65, show.legend = FALSE) +
+    geom_text(aes(label = sprintf("%.3f", valor)), hjust = -0.12, size = 4) +
+    facet_wrap(~ metrica, scales = "free_x", ncol = 3) +
+    scale_fill_manual(values = col_modelo) +
+    scale_x_continuous(expand = expansion(mult = c(0, 0.45))) +
+    labs(x = NULL, y = NULL) +
+    theme(panel.grid = element_blank(), axis.text.x = element_blank())
+}
+grafico_importancia <- function(obj, color) {
+  imp_agrupada %>%
+    filter(objetivo == obj) %>%
+    slice_max(porcentaje, n = 10) %>%
+    mutate(variable = reorder(etiqueta(variable), porcentaje)) %>%
+    ggplot(aes(porcentaje, variable)) +
+    geom_col(fill = color, width = 0.7) +
+    geom_text(aes(label = sprintf("%.1f %%", porcentaje)), hjust = -0.15, size = 3.8) +
+    scale_x_continuous(expand = expansion(mult = c(0, 0.2))) +
+    labs(x = "% de la importancia total", y = NULL) +
+    theme(panel.grid.major.y = element_blank())
+}
+
+ing_ini <- por_anio %>% slice_min(anio); ing_fin <- por_anio %>% slice_max(anio)
+```
+
+# Resumen
+
+## Indicadores {height=170px}
+
+```{r}
+#| content: valuebox
+#| title: "Asalariados analizados"
+list(icon = "people-fill", color = azul, value = fmt(sum(por_anio$asalariados)))
+```
+
+```{r}
+#| content: valuebox
+#| title: "R² ingreso · mejor modelo"
+list(icon = "cash-coin", color = "#548235", value = sprintf("%.3f", m1$valor))
+```
+
+```{r}
+#| content: valuebox
+#| title: "R² horas · mejor modelo"
+list(icon = "clock-fill", color = "#7F6000", value = sprintf("%.3f", m2$valor))
+```
+
+```{r}
+#| content: valuebox
+#| title: "Ingreso por año de estudio"
+list(icon = "mortarboard-fill", color = naranja, value = sprintf("+%.1f %%", ret_educ))
+```
+
+## Lectura
+
+::: {.card title="¿Qué muestra este dashboard?"}
+Se modelan **a la vez** dos variables de los **asalariados peruanos** (ENAHO 2014–2025, `r fmt(sum(por_anio$asalariados))` personas) con las mismas 19 predictoras:
+
+- **Y1:** logaritmo del ingreso mensual.
+- **Y2:** horas trabajadas por semana.
+
+Se compararon tres modelos (lineal, Elastic Net y Random Forest), entrenados con el 80 % de los datos y evaluados con el 20 % restante.
+
+**Hallazgos principales**
+
+1. El **`r nombre_modelo[m1$modelo]`** es el mejor modelo para las dos variables.
+2. El **ingreso se predice bien**: el modelo explica el **`r round(100 * m1$valor)` %** de su variación.
+3. Las **horas se predicen poco** (**`r round(100 * m2$valor)` %**): dependen de turnos, temporadas y decisiones personales que la encuesta no registra.
+4. La **educación** es la variable con mayor efecto conjunto sobre ingreso y horas.
+5. A igualdad de las demás características, las **mujeres ganan `r sprintf("%.0f", abs(brecha))` % `r mas_menos(brecha)`** que los hombres.
+
+Use las pestañas superiores para ver el detalle de los modelos, la interpretación y los datos.
+:::
+
+::: {.card title="¿Qué tan bien predice cada modelo? (R² en datos de prueba)"}
+```{r}
+#| fig-width: 8
+#| fig-height: 3.6
+metricas_prueba %>%
+  filter(metrica == "rsq") %>%
+  mutate(objetivo = factor(nombre_obj[objetivo], levels = nombre_obj),
+         modelo = factor(nombre_modelo[modelo], levels = rev(nombre_modelo))) %>%
+  ggplot(aes(valor, modelo, fill = modelo)) +
+  geom_col(width = 0.65, show.legend = FALSE) +
+  geom_text(aes(label = sprintf("%.3f", valor)), hjust = -0.15, size = 4.5, fontface = "bold") +
+  facet_wrap(~ objetivo) +
+  scale_fill_manual(values = col_modelo) +
+  scale_x_continuous(limits = c(0, 0.8), breaks = seq(0, 0.75, 0.25)) +
+  labs(x = "R² (proporción de la variación explicada)", y = NULL) +
+  theme(panel.grid.major.y = element_blank())
+```
+
+::: {.interp}
+**Interpretación.** Un R² de `r sprintf("%.2f", m1$valor)` significa que el modelo explica el `r round(100 * m1$valor)` % de las diferencias de ingreso entre trabajadores; en las horas solo explica el `r round(100 * m2$valor)` %. El Random Forest mejora al modelo lineal en `r sprintf("%.3f", m1$valor - r2_lin_y1)` puntos de R² en el ingreso y en `r sprintf("%.3f", m2$valor - r2_lin_y2)` en las horas, porque capta relaciones no lineales e interacciones entre las predictoras.
+:::
+:::
+
+# Modelos
+
+## Métricas por variable
+
+::: {.card title="Ingreso mensual (Y1): métricas en datos de prueba"}
+```{r}
+#| fig-width: 8
+#| fig-height: 3.2
+grafico_metricas(y1)
+```
+
+::: {.interp}
+**Interpretación.** Los tres modelos tienen errores parecidos, pero el `r nombre_modelo[m1$modelo]` es el que menos se equivoca. Como Y1 está en logaritmos, un MAE de `r sprintf("%.2f", mae_y1)` quiere decir que el ingreso predicho suele diferir del real en un factor de alrededor de `r sprintf("%.1f", exp(mae_y1))` (por encima o por debajo). El modelo lineal y el Elastic Net dan prácticamente lo mismo: con casi 300 mil casos, la regularización no cambia los coeficientes.
+:::
+:::
+
+::: {.card title="Horas semanales (Y2): métricas en datos de prueba"}
+```{r}
+#| fig-width: 8
+#| fig-height: 3.2
+grafico_metricas(y2)
+```
+
+::: {.interp}
+**Interpretación.** En las horas el error típico es de unas **`r sprintf("%.1f", mae_y2)` horas por semana** (MAE) con el mejor modelo, frente a una jornada promedio de `r sprintf("%.0f", mean(por_anio$horas_prom))` horas. Las características del trabajador y del empleo explican poco cuántas horas trabaja cada persona, por eso el R² es bajo en los tres modelos.
+:::
+:::
+
+## Tabla
+
+::: {.card title="Resultados de los modelos: validación cruzada frente a prueba"}
+```{r}
+comparacion %>%
+  mutate(metrica = recode(metrica, rsq = "R2", rmse = "RMSE", mae = "MAE")) %>%
+  select(objetivo, modelo, metrica, cv, valor) %>%
+  pivot_wider(names_from = metrica, values_from = c(cv, valor)) %>%
+  arrange(objetivo, desc(valor_R2)) %>%
+  mutate(es_mejor = modelo == c(y1_ln_ingreso_mensual = m1$modelo,
+                                y2_horas_semanales = m2$modelo)[objetivo],
+         Modelo = if_else(es_mejor, paste0("**", nombre_modelo[modelo], "** ★"), nombre_modelo[modelo]),
+         objetivo = nombre_obj[objetivo]) %>%
+  transmute(`Variable objetivo` = objetivo, Modelo,
+            `R² validación cruzada` = sprintf("%.3f", cv_R2),
+            `R² prueba` = sprintf("%.3f", valor_R2),
+            `RMSE prueba` = sprintf("%.3f", valor_RMSE),
+            `MAE prueba` = sprintf("%.3f", valor_MAE)) %>%
+  knitr::kable(align = "llcccc")
+```
+
+::: {.interp}
+**Interpretación.** ★ marca el mejor modelo de cada variable. Los R² de la validación cruzada y de la prueba se diferencian como máximo en **`r sprintf("%.3f", max_dif_r2)`**: los modelos rinden igual con datos que no vieron al entrenarse, es decir, **no hay sobreajuste**.
+:::
+:::
+
+## Guía de lectura
+
+::: {.card title="Cómo leer las métricas"}
+- **R²:** proporción de la variación que explica el modelo, entre 0 y 1. Más alto es mejor.
+- **RMSE:** error típico de la predicción; castiga más los errores grandes. Más bajo es mejor.
+- **MAE:** error absoluto promedio. Más bajo es mejor.
+- En **Y1** el RMSE y el MAE están en logaritmos del ingreso; en **Y2**, en **horas por semana**.
+- **Validación cruzada:** el entrenamiento se divide en 5 partes y el modelo se evalúa 5 veces. **Prueba:** 20 % de los datos que el modelo nunca vio.
+:::
+
+# Interpretación
+
+## Efectos
+
+::: {.card title="Efecto conjunto sobre ingreso y horas (prueba de Pillai)"}
+```{r}
+#| fig-width: 7
+#| fig-height: 4.6
+pillai_ord %>%
+  mutate(variable = reorder(variable, Pillai)) %>%
+  ggplot(aes(Pillai, variable)) +
+  geom_col(aes(fill = Pillai >= 0.05), width = 0.7, show.legend = FALSE) +
+  geom_text(aes(label = sprintf("%.3f", Pillai)), hjust = -0.15, size = 3.6) +
+  scale_fill_manual(values = c(`TRUE` = azul, `FALSE` = "#B4C7E7")) +
+  scale_x_continuous(expand = expansion(mult = c(0, 0.18))) +
+  labs(x = "Pillai (más alto = mayor efecto conjunto)", y = NULL) +
+  theme(panel.grid.major.y = element_blank())
+```
+
+::: {.interp}
+**Interpretación.** La prueba de Pillai mide cuánto influye cada predictora **en el ingreso y las horas a la vez**. Destacan **`r pillai_ord$variable[1]`** (`r sprintf("%.3f", pillai_ord$Pillai[1])`), **`r pillai_ord$variable[2]`** y **`r pillai_ord$variable[3]`**. En azul claro, efectos pequeños (< 0.05). Todas salen significativas porque la muestra es muy grande, así que importa el **tamaño** del Pillai, no el p-valor. La prueba es secuencial: cada valor depende del orden en que la variable entra al modelo.
+:::
+:::
+
+::: {.card title="¿Cuánto cambian el ingreso y las horas? (regresión multivariada)"}
+```{r}
+#| fig-width: 8
+#| fig-height: 4.4
+terminos <- c("anios_educ", "mujer", "sector_publico", "afiliado_pensiones", "urbano",
+              "lengua_nativa", "jefe_hogar", "casado_conviviente")
+paneles <- c("Ingreso (% de cambio)", "Horas por semana")
+coef_mv %>%
+  filter(term %in% terminos) %>%
+  mutate(efecto = if_else(response == y1, pct(estimate), estimate),
+         panel  = factor(if_else(response == y1, paneles[1], paneles[2]), levels = paneles),
+         variable = if_else(term == "anios_educ", "Años de educación (+1)", etiqueta(term)),
+         texto = if_else(response == y1, sprintf("%+.1f %%", efecto), sprintf("%+.1f h", efecto))) %>%
+  group_by(variable) %>% mutate(orden = efecto[panel == paneles[1]]) %>% ungroup() %>%
+  ggplot(aes(efecto, reorder(variable, orden), fill = efecto > 0)) +
+  geom_col(width = 0.7, show.legend = FALSE) +
+  geom_vline(xintercept = 0, color = "grey40") +
+  geom_text(aes(label = texto, hjust = if_else(efecto > 0, -0.1, 1.1)), size = 3.6) +
+  facet_wrap(~ panel, scales = "free_x") +
+  scale_fill_manual(values = c(`TRUE` = azul, `FALSE` = naranja)) +
+  scale_x_continuous(expand = expansion(mult = 0.35)) +
+  labs(x = "Efecto manteniendo constantes las demás predictoras", y = NULL) +
+  theme(panel.grid.major.y = element_blank())
+```
+
+::: {.interp}
+**Interpretación** (azul = aumenta, naranja = disminuye):
+
+- **Educación:** cada año adicional de estudio se asocia con un ingreso `r sprintf("%.1f", ret_educ)` % mayor y `r sprintf("%.2f", abs(h_educ))` horas semanales `r mas_menos(h_educ)`. El efecto es menor que en una ecuación de Mincer simple porque el modelo ya controla la ocupación, la rama y el tamaño de la empresa, que en parte dependen de la educación.
+- **Mujer:** gana `r sprintf("%.1f", abs(brecha))` % `r mas_menos(brecha)` y trabaja `r sprintf("%.1f", abs(h_mujer))` horas `r mas_menos(h_mujer)` por semana que un hombre con las mismas características.
+- **Sector público:** `r sprintf("%+.1f", ef_publico)` % de ingreso y `r sprintf("%+.1f", h_publico)` horas por semana. **Afiliación a pensiones** (empleo formal): `r sprintf("%+.1f", ef_pension)` % de ingreso.
+:::
+:::
+
+## Importancia
+
+::: {.card title="Variables que más usa el Random Forest: ingreso (Y1)"}
+```{r}
+#| fig-width: 7
+#| fig-height: 3.8
+grafico_importancia(y1, azul)
+```
+
+::: {.interp}
+**Interpretación.** Para predecir el ingreso, el Random Forest se apoya sobre todo en **`r etiqueta(top_imp(y1, 1)$variable)`** (`r sprintf("%.1f", top_imp(y1, 1)$porcentaje)` % de la importancia), seguida de **`r etiqueta(top_imp(y1, 2)$variable)`** y **`r etiqueta(top_imp(y1, 3)$variable)`**. Las variables de una misma categoría (por ejemplo, todas las ramas de actividad) se suman en una sola barra.
+:::
+:::
+
+::: {.card title="Variables que más usa el Random Forest: horas (Y2)"}
+```{r}
+#| fig-width: 7
+#| fig-height: 3.8
+grafico_importancia(y2, naranja)
+```
+
+::: {.interp}
+**Interpretación.** Para las horas, las más importantes son **`r etiqueta(top_imp(y2, 1)$variable)`** (`r sprintf("%.1f", top_imp(y2, 1)$porcentaje)` %), **`r etiqueta(top_imp(y2, 2)$variable)`** y **`r etiqueta(top_imp(y2, 3)$variable)`**. La importancia indica qué variables usa más el modelo, no si aumentan o reducen las horas; la dirección del efecto se ve en el gráfico de coeficientes.
+:::
+:::
+
+# Datos
+
+## Construcción
+
+::: {.card title="De la base unida a la base del modelo"}
+```{r}
+#| fig-width: 8
+#| fig-height: 3.4
+embudo %>%
+  mutate(Etapa = recode(Etapa, base_modelo = "Base del modelo"),
+         Etapa = factor(Etapa, levels = rev(Etapa)),
+         texto = paste0(fmt(Personas), " (", round(100 * Personas / first(Personas), 1), " %)")) %>%
+  ggplot(aes(Personas, Etapa)) +
+  geom_col(aes(fill = Etapa == "Base del modelo"), width = 0.7, show.legend = FALSE) +
+  geom_text(aes(label = texto), hjust = -0.05, size = 3.8) +
+  scale_fill_manual(values = c(`TRUE` = naranja, `FALSE` = azul)) +
+  scale_x_continuous(labels = scales::label_comma(), expand = expansion(mult = c(0, 0.45))) +
+  labs(x = "Personas", y = NULL) +
+  theme(panel.grid.major.y = element_blank())
+```
+
+::: {.interp}
+**Interpretación.** De `r fmt(first(embudo$Personas))` registros de la ENAHO unida quedan `r fmt(last(embudo$Personas))` asalariados (`r sprintf("%.1f", 100 * last(embudo$Personas) / first(embudo$Personas))` %). La mayor reducción se debe a que el estudio solo considera a los **asalariados ocupados**; después solo se excluyen los casos sin ingreso y los faltantes reales.
+:::
+:::
+
+::: {.card title="Asalariados en la base del modelo por año (2020 en naranja)"}
+```{r}
+#| fig-width: 8
+#| fig-height: 3.4
+ggplot(por_anio, aes(factor(anio), asalariados, fill = anio == 2020)) +
+  geom_col(width = 0.75, show.legend = FALSE) +
+  geom_text(aes(label = fmt(asalariados)), vjust = -0.4, size = 3) +
+  scale_fill_manual(values = c(`FALSE` = azul, `TRUE` = naranja)) +
+  scale_y_continuous(labels = scales::label_comma(), expand = expansion(mult = c(0, 0.12))) +
+  labs(x = NULL, y = "Asalariados") +
+  theme(panel.grid.major.x = element_blank())
+```
+
+::: {.interp}
+**Interpretación.** Cada año aporta entre `r fmt(min(resto$asalariados))` y `r fmt(max(resto$asalariados))` asalariados. En **2020** solo hay `r fmt(a2020$asalariados)`: por la pandemia, la ENAHO se hizo en parte por teléfono con un cuestionario reducido, y muchos registros no tienen el tipo de contrato, por lo que se eliminaron.
+:::
+:::
+
+## Evolución
+
+::: {.card title="Ingreso mensual promedio (S/)"}
+```{r}
+#| fig-width: 8
+#| fig-height: 3.4
+ggplot(por_anio, aes(anio, ingreso_mensual_prom)) +
+  geom_line(color = azul, linewidth = 1.1) +
+  geom_point(aes(color = anio == 2020), size = 3, show.legend = FALSE) +
+  geom_text(aes(label = fmt(ingreso_mensual_prom)), vjust = -1, size = 3.3) +
+  scale_color_manual(values = c(`FALSE` = azul, `TRUE` = naranja)) +
+  scale_x_continuous(breaks = anios) +
+  scale_y_continuous(labels = scales::label_comma(), expand = expansion(mult = c(0.08, 0.15))) +
+  labs(x = NULL, y = "Soles por mes")
+```
+
+::: {.interp}
+**Interpretación.** El ingreso mensual promedio de los asalariados pasa de S/ `r fmt(ing_ini$ingreso_mensual_prom)` en `r ing_ini$anio` a S/ `r fmt(ing_fin$ingreso_mensual_prom)` en `r ing_fin$anio`, un aumento de `r sprintf("%.0f", 100 * (ing_fin$ingreso_mensual_prom / ing_ini$ingreso_mensual_prom - 1))` %. Por esta tendencia el **año de la encuesta** se incluye como predictora.
+:::
+:::
+
+::: {.card title="Horas trabajadas por semana (promedio)"}
+```{r}
+#| fig-width: 8
+#| fig-height: 3.4
+media_h <- mean(por_anio$horas_prom)
+ggplot(por_anio, aes(anio, horas_prom)) +
+  geom_line(color = azul, linewidth = 1.1) +
+  geom_point(aes(color = anio == 2020), size = 3, show.legend = FALSE) +
+  geom_text(aes(label = sprintf("%.1f", horas_prom)), vjust = -1, size = 3.3) +
+  scale_color_manual(values = c(`FALSE` = azul, `TRUE` = naranja)) +
+  scale_x_continuous(breaks = anios) +
+  coord_cartesian(ylim = c(media_h - 4, media_h + 4)) +
+  labs(x = NULL, y = "Horas por semana")
+```
+
+::: {.interp}
+**Interpretación.** Las horas son casi constantes: entre `r sprintf("%.1f", min(por_anio$horas_prom))` y `r sprintf("%.1f", max(por_anio$horas_prom))` horas por semana en todo el periodo (el eje muestra ±4 horas alrededor del promedio para no exagerar las variaciones). Esto es coherente con el bajo R² de Y2: las horas varían más entre personas que entre años.
+:::
+:::
+
+## Tabla por año
+
+::: {.card title="Resumen de la base del modelo por año"}
+```{r}
+por_anio %>%
+  mutate(`% del total` = sprintf("%.1f %%", 100 * asalariados / sum(asalariados))) %>%
+  transmute(Año = as.character(anio),
+            Asalariados = fmt(asalariados),
+            `% del total`,
+            `Ingreso mensual promedio (S/)` = fmt(ingreso_mensual_prom),
+            `Horas semanales promedio` = sprintf("%.1f", horas_prom)) %>%
+  knitr::kable(align = "lcccc")
+```
+:::

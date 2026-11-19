@@ -1,0 +1,32 @@
+cff-version: 1.2.0
+message: "Si usas este código o estos datos, cítalos así."
+title: "Regresión multivariada con dos variables objetivo: ENAHO 2014–2025"
+type: software
+authors:
+  - family-names: "Catunta Huisa"
+    given-names: "Nelson"
+    affiliation: "Universidad Nacional del Altiplano – Puno"
+  - family-names: "Peralta Lopez"
+    given-names: "Etzel Yuliza"
+    affiliation: "Universidad Nacional del Altiplano – Puno"
+  - family-names: "Quispe Cruz"
+    given-names: "Joel Antoni"
+    affiliation: "Universidad Nacional del Altiplano – Puno"
+  - family-names: "Umiña Machaca"
+    given-names: "Beatriz"
+    affiliation: "Universidad Nacional del Altiplano – Puno"
+repository-code: "https://github.com/joe-cru-77/enaho-regresion-multivariada"
+license: MIT
+version: "1.0.0"
+keywords:
+  - ENAHO
+  - regresión multivariada
+  - ciencia de datos
+  - Quarto
+  - reproducibilidad
+references:
+  - type: data
+    title: "Base de modelado ENAHO 2014–2025"
+    doi: "10.5281/zenodo.XXXXXXX"
+    authors:
+      - name: "Grupo de Ciencia de Datos, UNA Puno"

@@ -1,0 +1,30 @@
+# Publica el sitio Quarto en GitHub Pages en cada push a main.
+# Usa los resultados congelados en _freeze/ (freeze: auto): no necesita los datos
+# ni volver a ejecutar R. Antes de hacer push, ejecuta `quarto render` en tu PC
+# y sube la carpeta _freeze/.
+name: Publicar sitio Quarto
+
+on:
+  push:
+    branches: main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el repositorio
+        uses: actions/checkout@v4
+
+      - name: Instalar Quarto
+        uses: quarto-dev/quarto-actions/setup@v2
+
+      - name: Publicar en GitHub Pages
+        uses: quarto-dev/quarto-actions/publish@v2
+        with:
+          target: gh-pages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

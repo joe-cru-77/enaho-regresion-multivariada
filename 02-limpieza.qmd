@@ -1,0 +1,160 @@
+---
+title: "2. Limpieza y base del modelo"
+description: "Diagnóstico de faltantes, tratamiento de pases y recodificación de las variables"
+---
+
+```{r}
+#| label: setup
+#| include: false
+source(here::here("R", "00_config.R"))
+source(here::here("R", "02_funciones_limpieza.R"))
+interim_listo <- any(file.exists(file.path(rutas$interim, sprintf("enaho_unida_%d.rds", anios))))
+```
+
+Esta etapa construye `base_modelo`: los **asalariados ocupados** con todas las variables del modelo completas y recodificadas. Es la misma lógica que se aplicó en PostgreSQL, escrita con dplyr para que se pueda reproducir sin una base de datos.
+
+```{r}
+#| label: leer
+if (interim_listo) {
+  unida <- leer_base_unida()
+  asalariados <- unida %>% filter(ocu500 == 1, p507 %in% c(3, 4, 6))
+  cat("Personas en la base unida:", fmt(nrow(unida)),
+      "| asalariados ocupados:", fmt(nrow(asalariados)), "\n")
+} else {
+  cat("No está la base unida (datos/interim): se usa base_modelo.csv.gz ya generado o descargado de Zenodo.\n")
+}
+```
+
+## 2.1 Diagnóstico de faltantes
+
+Se distinguen dos tipos de celdas vacías:
+
+- **Pase:** la encuesta no le hace esa pregunta a esa persona. No es un error y no se elimina.
+- **Faltante real:** la persona debía responder y no hay dato, o tiene un código de «sin dato» (9, 99, 9999).
+
+```{r}
+#| label: faltantes
+if (interim_listo) {
+  faltantes <- asalariados %>%
+    summarise(
+      `Contrato (p511a)`          = sum(is.na(p511a)),
+      `Sector (p510)`             = sum(is.na(p510)),
+      `Tamaño de empresa (p512a)` = sum(is.na(p512a) | p512a %in% 9),
+      `Ingreso (i524a1)`          = sum(is.na(i524a1) | i524a1 <= 0),
+      `Lengua materna (p300a)`    = sum(is.na(p300a) | p300a %in% c(9, 99)),
+      `Educación (p301a)`         = sum(is.na(p301a) | p301a %in% c(12, 99)),
+      `Horas (p513t)`             = sum(is.na(p513t))) %>%
+    pivot_longer(everything(), names_to = "Variable", values_to = "Faltantes") %>%
+    mutate(`% de asalariados` = round(100 * Faltantes / nrow(asalariados), 2)) %>%
+    arrange(desc(Faltantes))
+  guardar_tabla(faltantes, "faltantes_modelo")
+}
+if (file.exists(file.path(rutas$tablas, "faltantes_modelo.csv"))) {
+  read_csv(file.path(rutas$tablas, "faltantes_modelo.csv"), show_col_types = FALSE)
+}
+```
+
+Para separar los pases de los faltantes reales se revisa dónde se concentran:
+
+```{r}
+#| label: pases
+if (interim_listo) {
+  pases <- bind_rows(
+    asalariados %>% filter(p507 == 6) %>%
+      summarise(Grupo = "Trabajadores del hogar (p507 = 6)", Total = n(),
+                `Sin sector` = sum(is.na(p510)), `Sin contrato` = sum(is.na(p511a)),
+                `Sin tamaño` = sum(is.na(p512a) | p512a %in% 9)),
+    asalariados %>% filter(p510 %in% 1) %>%
+      summarise(Grupo = "FF.AA. y Policía (p510 = 1)", Total = n(),
+                `Sin sector` = sum(is.na(p510)), `Sin contrato` = sum(is.na(p511a)),
+                `Sin tamaño` = sum(is.na(p512a) | p512a %in% 9)),
+    asalariados %>% filter(anio == 2020, !p510 %in% 1) %>%
+      summarise(Grupo = "Resto de asalariados, año 2020", Total = n(),
+                `Sin sector` = sum(is.na(p510)), `Sin contrato` = sum(is.na(p511a)),
+                `Sin tamaño` = sum(is.na(p512a) | p512a %in% 9)))
+  guardar_tabla(pases, "faltantes_pases")
+}
+if (file.exists(file.path(rutas$tablas, "faltantes_pases.csv"))) {
+  read_csv(file.path(rutas$tablas, "faltantes_pases.csv"), show_col_types = FALSE)
+}
+```
+
+| Caso | Tipo | Tratamiento |
+|---|---|---|
+| Sector vacío en trabajadores del hogar | Pase | Sector público = 0 |
+| Contrato y tamaño vacíos en FF.AA./PNP | Pase | Categoría propia `ffaa_pnp` |
+| Contrato vacío en el resto (concentrado en 2020, encuesta telefónica por la pandemia) | Faltante real | Se elimina la fila |
+| Lengua, educación, tamaño, horas | Faltante real | Se elimina la fila |
+| Ingreso vacío o igual a 0 | Fuera de la población | Se exige ingreso > 0 |
+
+## 2.2 Construcción de `base_modelo`
+
+```{r}
+#| label: construir
+if (interim_listo) {
+  base_modelo <- construir_base_modelo(unida)
+  write_csv(base_modelo, archivo_base_modelo)        # .csv.gz: comprimido para publicar en Zenodo
+
+  embudo <- tibble(
+    Etapa = c("Base unida (módulos 200 + 300 + 500)", "Con datos del módulo de empleo",
+              "Asalariados ocupados", "Con ingreso mayor que 0", "base_modelo"),
+    Personas = c(nrow(unida), sum(!is.na(unida$ocu500)), nrow(asalariados),
+                 sum(asalariados$i524a1 > 0, na.rm = TRUE), nrow(base_modelo)))
+  guardar_tabla(embudo, "embudo")
+  rm(unida, asalariados); invisible(gc())
+}
+
+base_modelo <- read_csv(archivo_base_modelo, show_col_types = FALSE)
+if (file.exists(file.path(rutas$tablas, "embudo.csv"))) {
+  read_csv(file.path(rutas$tablas, "embudo.csv"), show_col_types = FALSE) %>%
+    mutate(`%` = round(100 * Personas / first(Personas), 1))
+}
+```
+
+`base_modelo` tiene **`r fmt(nrow(base_modelo))` asalariados**, las 2 variables objetivo y las 19 predictoras.
+
+## 2.3 Verificación por año
+
+```{r}
+#| label: verificacion
+por_anio <- base_modelo %>%
+  group_by(anio) %>%
+  summarise(asalariados = n(),
+            ingreso_mensual_prom = round(mean(exp(y1_ln_ingreso_mensual))),
+            horas_prom = round(mean(y2_horas_semanales), 1))
+guardar_tabla(por_anio, "base_modelo_por_anio")
+por_anio
+```
+
+## 2.4 Diccionario de `base_modelo`
+
+Este diccionario se publica en Zenodo junto con los datos.
+
+```{r}
+#| label: diccionario
+diccionario <- tribble(
+  ~variable, ~descripcion, ~fuente_enaho,
+  "anio, conglome, vivienda, hogar, codperso", "Año y llaves de identificación de la persona", "Módulo 200",
+  "fac500a", "Factor de expansión del módulo de empleo", "fac500a",
+  "y1_ln_ingreso_mensual", "Logaritmo del ingreso mensual de la ocupación principal (imputado y deflactado por el INEI)", "ln(i524a1 / 12)",
+  "y2_horas_semanales", "Horas trabajadas la semana pasada en la ocupación principal", "p513t",
+  "mujer", "1 = mujer", "p207",
+  "edad, edad2", "Edad en años y su cuadrado", "p208a",
+  "anios_educ", "Años de educación aprobados", "p301a, p301b, p301c",
+  "lengua_nativa", "1 = lengua materna originaria", "p300a",
+  "etnia", "indígena, afro, blanco, mestizo, otro_ns", "p558c",
+  "casado_conviviente", "1 = casado(a) o conviviente", "p209",
+  "jefe_hogar", "1 = jefe(a) de hogar", "p203",
+  "tam_hogar", "Número de miembros del hogar", "conteo módulo 200 (p204 = 1)",
+  "urbano", "1 = estrato 1 a 5", "estrato",
+  "region", "costa, sierra, selva, lima_metropolitana", "dominio",
+  "cat_ocupacional", "empleado, obrero, trab_hogar", "p507",
+  "sector_publico", "1 = FF.AA./PNP, administración o empresa pública", "p510",
+  "tam_empresa", "Rango de trabajadores de la empresa o ffaa_pnp", "p512a",
+  "contrato", "indefinido, plazo_fijo, cas, sin_contrato, otro, ffaa_pnp", "p511a",
+  "afiliado_pensiones", "1 = afiliado a un sistema de pensiones", "p558a1 a p558a5",
+  "rama", "Sección CIIU rev. 4", "p506r4",
+  "grupo_ocupacional", "Gran grupo de ocupación (1er dígito)", "p505r4")
+write_csv(diccionario, file.path(rutas$processed, "diccionario_base_modelo.csv"))
+diccionario
+```

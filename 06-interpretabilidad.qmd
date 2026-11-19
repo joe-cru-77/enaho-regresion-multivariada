@@ -1,0 +1,82 @@
+---
+title: "6. Interpretabilidad"
+description: "Efecto de cada predictora sobre el ingreso y las horas, e importancia de variables"
+---
+
+```{r}
+#| label: setup
+#| include: false
+source(here::here("R", "00_config.R"))
+leer <- function(n) read_csv(file.path(rutas$tablas, paste0(n, ".csv")), show_col_types = FALSE)
+coef_mv     <- leer("coeficientes_multivariado")
+pillai      <- leer("pillai_multivariado")
+importancia <- leer("importancia_random_forest")
+etiqueta_obj <- c(y1_ln_ingreso_mensual = "Y1: ln ingreso mensual", y2_horas_semanales = "Y2: horas semanales")
+```
+
+Un modelo predictivo no solo debe predecir bien: también debe poder explicarse. Aquí se interpretan los resultados de dos formas:
+
+- con los **coeficientes de la regresión multivariada**, que dicen cuánto cambia cada variable objetivo cuando cambia una predictora;
+- con la **importancia de variables del Random Forest**, que dice qué predictoras usa más el modelo para predecir.
+
+## 6.1 Efecto conjunto de cada predictora (prueba de Pillai)
+
+La prueba de Pillai evalúa si una predictora afecta **a la vez** al ingreso y a las horas. Un valor de Pillai más alto indica un efecto conjunto más fuerte.
+
+```{r}
+#| label: pillai
+pillai %>%
+  arrange(desc(Pillai)) %>%
+  transmute(predictora = termino, Pillai = round(Pillai, 4),
+            F_aprox = round(`approx F`, 1), p_valor = signif(`Pr(>F)`, 3))
+```
+
+## 6.2 Coeficientes principales
+
+En Y1 (logaritmo del ingreso), un coeficiente *b* equivale aproximadamente a un cambio de **100 × (e^b − 1) %** en el ingreso. En Y2, el coeficiente es el cambio en **horas por semana**.
+
+```{r}
+#| label: coeficientes
+terminos <- c("anios_educ", "mujer", "edad", "sector_publico", "afiliado_pensiones",
+              "urbano", "lengua_nativa", "jefe_hogar", "casado_conviviente", "tam_hogar")
+coef_mv %>%
+  filter(term %in% terminos) %>%
+  select(response, term, estimate, p.value) %>%
+  pivot_wider(names_from = response, values_from = c(estimate, p.value)) %>%
+  transmute(predictora = term,
+            `Y1: coeficiente` = round(estimate_y1_ln_ingreso_mensual, 4),
+            `Y1: efecto en el ingreso (%)` = round(100 * (exp(estimate_y1_ln_ingreso_mensual) - 1), 1),
+            `Y2: horas por semana` = round(estimate_y2_horas_semanales, 2),
+            `p-valor Y1` = signif(p.value_y1_ln_ingreso_mensual, 3),
+            `p-valor Y2` = signif(p.value_y2_horas_semanales, 3))
+```
+
+```{r}
+#| label: retorno-educacion
+b_educ <- coef_mv %>% filter(response == "y1_ln_ingreso_mensual", term == "anios_educ") %>% pull(estimate)
+```
+
+Por ejemplo, **cada año adicional de educación se asocia con un ingreso `r round(100 * (exp(b_educ) - 1), 1)` % mayor**, manteniendo constantes las demás predictoras. Es el «retorno a la educación» de la ecuación de Mincer.
+
+## 6.3 Importancia de variables (Random Forest)
+
+```{r}
+#| label: fig-importancia
+#| fig-cap: "Las 15 predictoras más importantes para cada variable objetivo (Random Forest, reducción de impureza)"
+#| fig-width: 9
+#| fig-height: 5.5
+importancia %>%
+  group_by(objetivo) %>%
+  mutate(importancia = 100 * importancia / max(importancia)) %>%
+  slice_max(importancia, n = 15) %>%
+  ungroup() %>%
+  mutate(objetivo = etiqueta_obj[objetivo],
+         variable = reorder(paste(variable, objetivo, sep = "___"), importancia)) %>%
+  ggplot(aes(importancia, variable)) +
+  geom_col(fill = "#2F5496") +
+  facet_wrap(~ objetivo, scales = "free_y") +
+  scale_y_discrete(labels = function(x) str_remove(x, "___.*$")) +
+  labs(x = "Importancia relativa (máximo = 100)", y = NULL)
+```
+
+Las predictoras que aparecen arriba en ambos paneles son las que más explican el ingreso y las horas. Se pueden contrastar con los coeficientes de la sección 6.2.

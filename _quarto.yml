@@ -1,0 +1,74 @@
+project:
+  type: website
+  output-dir: docs            # carpeta que se publica en GitHub Pages
+  render:
+    - index.qmd
+    - 01-integracion.qmd
+    - 02-limpieza.qmd
+    - 03-exploracion.qmd
+    - 04-modelado.qmd
+    - 05-validacion.qmd
+    - 06-interpretabilidad.qmd
+    - 07-mlops.qmd
+    - 08-despliegue.qmd
+    - 09-disponibilidad-datos.qmd
+    - dashboard.qmd
+
+execute:
+  freeze: auto                # guarda los resultados en _freeze/: solo se recalcula lo que cambia
+  echo: true
+  warning: false
+  message: false
+
+lang: es
+
+website:
+  title: "Regresión multivariada ENAHO 2014–2025"
+  site-url: "https://joe-cru-77.github.io/enaho-regresion-multivariada"   # <-- cambiar
+  repo-url: "https://github.com/joe-cru-77/enaho-regresion-multivariada"  # <-- cambiar
+  repo-actions: [source, issue]
+  sidebar:
+    style: docked
+    search: true
+    logo: imagenes/logo_finesi.png
+    contents:
+      - text: "Inicio y arquitectura"
+        href: index.qmd
+      - section: "Pipeline de datos"
+        contents:
+          - href: 01-integracion.qmd
+            text: "1. Integración"
+          - href: 02-limpieza.qmd
+            text: "2. Limpieza"
+          - href: 03-exploracion.qmd
+            text: "3. Exploración"
+      - section: "Modelos predictivos"
+        contents:
+          - href: 04-modelado.qmd
+            text: "4. Modelado"
+          - href: 05-validacion.qmd
+            text: "5. Validación"
+          - href: 06-interpretabilidad.qmd
+            text: "6. Interpretabilidad"
+      - section: "MLOps y datos abiertos"
+        contents:
+          - href: 07-mlops.qmd
+            text: "7. MLOps"
+          - href: 08-despliegue.qmd
+            text: "8. Despliegue"
+          - href: 09-disponibilidad-datos.qmd
+            text: "9. Disponibilidad de datos"
+      - text: "Dashboard"
+        href: dashboard.qmd
+  page-footer:
+    center: "Universidad Nacional del Altiplano – Puno · Ingeniería Estadística e Informática"
+
+format:
+  html:
+    theme: cosmo
+    toc: true
+    toc-title: "En esta página"
+    code-fold: true
+    code-tools: true
+    number-sections: false
+    df-print: kable

@@ -1,0 +1,114 @@
+---
+title: "5. Validación"
+description: "Métricas de validación cruzada y de prueba: RMSE, R² y MAE para cada variable objetivo"
+---
+
+```{r}
+#| label: setup
+#| include: false
+source(here::here("R", "00_config.R"))
+leer <- function(n) read_csv(file.path(rutas$tablas, paste0(n, ".csv")), show_col_types = FALSE)
+metricas_cv     <- leer("metricas_validacion_cruzada")
+metricas_prueba <- leer("metricas_prueba")
+predicciones    <- leer("predicciones_prueba_muestra")
+etiqueta_obj <- c(y1_ln_ingreso_mensual = "Y1: ln ingreso mensual", y2_horas_semanales = "Y2: horas semanales")
+```
+
+Se usan tres métricas de `yardstick` (tidymodels):
+
+- **RMSE:** error cuadrático medio; penaliza más los errores grandes. Cuanto menor, mejor.
+- **MAE:** error absoluto medio. Cuanto menor, mejor.
+- **R²:** proporción de la variación de la variable objetivo que explica el modelo. Cuanto mayor, mejor.
+
+Cada métrica se calcula por separado para las dos variables objetivo: un buen ajuste en el ingreso no garantiza un buen ajuste en las horas.
+
+## 5.1 Comparación de modelos
+
+```{r}
+#| label: fig-metricas
+#| fig-cap: "R² y RMSE en el conjunto de prueba por modelo y variable objetivo"
+#| fig-width: 9
+#| fig-height: 6
+metricas_prueba %>%
+  filter(metrica %in% c("rsq", "rmse")) %>%
+  mutate(objetivo = etiqueta_obj[objetivo],
+         metrica = if_else(metrica == "rsq", "R²", "RMSE")) %>%
+  ggplot(aes(modelo, valor, fill = modelo)) +
+  geom_col(show.legend = FALSE, width = 0.7) +
+  geom_text(aes(label = round(valor, 3)), vjust = -0.4, size = 3.5) +
+  # cada panel con su propia escala: el RMSE del ingreso (~0.6) y el de las horas (~15) no se mezclan
+  facet_wrap(vars(objetivo, metrica), scales = "free_y", nrow = 2,
+             labeller = label_wrap_gen(multi_line = FALSE)) +
+  # 15 % de espacio sobre la barra más alta para que las etiquetas no se corten
+  scale_y_continuous(expand = expansion(mult = c(0, 0.15))) +
+  scale_x_discrete(labels = c(lineal = "Lineal", elastic_net = "Elastic Net", random_forest = "Random Forest")) +
+  scale_fill_manual(values = c(lineal = "#8FAADC", elastic_net = "#2F5496", random_forest = "#C55A11")) +
+  labs(x = NULL, y = NULL) +
+  theme(strip.text = element_text(face = "bold"))
+```
+
+```{r}
+#| label: tabla-mejor
+mejores <- metricas_prueba %>%
+  filter(metrica == "rmse") %>%
+  group_by(objetivo) %>%
+  slice_min(valor, n = 1) %>%
+  select(objetivo, mejor_modelo = modelo, rmse_prueba = valor)
+guardar_tabla(mejores, "mejor_modelo")
+mejores %>% mutate(rmse_prueba = round(rmse_prueba, 4))
+```
+
+## 5.2 ¿Hay sobreajuste? Validación cruzada frente a prueba
+
+Si las métricas de la validación cruzada y las de la prueba son parecidas, el modelo generaliza bien a datos nuevos.
+
+```{r}
+#| label: cv-vs-prueba
+metricas_cv %>%
+  select(objetivo, modelo, metrica, validacion_cruzada = media) %>%
+  inner_join(metricas_prueba %>% rename(prueba = valor), by = c("objetivo", "modelo", "metrica")) %>%
+  mutate(diferencia = prueba - validacion_cruzada,
+         across(where(is.numeric), ~ round(.x, 4))) %>%
+  arrange(objetivo, metrica, modelo)
+```
+
+## 5.3 Valores reales frente a predichos
+
+```{r}
+#| label: fig-real-predicho
+#| fig-cap: "Valores reales frente a predichos en el conjunto de prueba (muestra de 5 000 casos por modelo)"
+#| fig-width: 9
+#| fig-height: 6.5
+nombres_modelo <- c(lineal = "Lineal", elastic_net = "Elastic Net", random_forest = "Random Forest")
+predicciones %>%
+  mutate(objetivo = etiqueta_obj[objetivo],
+         modelo = factor(nombres_modelo[modelo], levels = nombres_modelo)) %>%
+  ggplot(aes(real, .pred)) +
+  # mapa de densidad en vez de puntos: con miles de casos los puntos se tapan entre sí
+  geom_bin_2d(bins = 40) +
+  geom_abline(color = "#C55A11", linewidth = 0.8) +
+  # fila = variable objetivo, columna = modelo; cada fila con su propia escala
+  facet_wrap(vars(objetivo, modelo), scales = "free", ncol = 3,
+             labeller = label_wrap_gen(multi_line = FALSE)) +
+  scale_fill_gradient(low = "#DCE6F2", high = "#1F3864", trans = "log10",
+                      name = "N.º de casos") +
+  labs(x = "Valor real", y = "Valor predicho",
+       caption = "La línea naranja marca la predicción perfecta (predicho = real).") +
+  theme(strip.text = element_text(face = "bold"), legend.position = "bottom")
+```
+
+## 5.4 Residuos
+
+```{r}
+#| label: fig-residuos
+#| fig-cap: "Distribución de los residuos (real − predicho) en el conjunto de prueba"
+#| fig-width: 9
+#| fig-height: 4
+predicciones %>%
+  mutate(residuo = real - .pred, objetivo = etiqueta_obj[objetivo]) %>%
+  ggplot(aes(residuo, fill = modelo)) +
+  geom_density(alpha = 0.4) +
+  facet_wrap(~ objetivo, scales = "free") +
+  scale_fill_manual(values = c(lineal = "#8FAADC", elastic_net = "#2F5496", random_forest = "#C55A11")) +
+  labs(x = "Residuo", y = "Densidad", fill = "Modelo")
+```

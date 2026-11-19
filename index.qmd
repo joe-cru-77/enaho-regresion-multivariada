@@ -1,0 +1,100 @@
+---
+title: "Regresión multivariada con dos variables objetivo: ENAHO 2014–2025"
+subtitle: "Pipeline reproducible en Quarto: de los microdatos del INEI a los modelos predictivos"
+author:
+  - "Catunta Huisa, Nelson"
+  - "Peralta Lopez, Etzel Yuliza"
+  - "Quispe Cruz, Joel Antoni"
+  - "Umiña Machaca, Beatriz"
+date: today
+---
+
+## Componentes del pipeline
+
+| Componente | Dónde |
+|---|---|
+| **Modelado** | Regresión multivariada (MCO), lineal, Elastic Net y Random Forest: [4. Modelado](04-modelado.qmd) |
+| **Validación** | Validación cruzada y conjunto de prueba con RMSE, R² y MAE: [5. Validación](05-validacion.qmd) |
+| **Interpretabilidad** | Coeficientes, prueba de Pillai e importancia de variables: [6. Interpretabilidad](06-interpretabilidad.qmd) |
+| **Reproducibilidad** | Quarto, rutas relativas, semilla fija, `renv`, `freeze`, datos con DOI: `LISTA_REPRODUCIBILIDAD.md` |
+| **MLOps** | Registro y versiones de modelos, API, monitoreo y GitHub Actions: [7. MLOps](07-mlops.qmd) |
+
+## Objetivo
+
+Estimar, con datos de la Encuesta Nacional de Hogares (ENAHO) 2014–2025, una **regresión multivariada** que explique a la vez dos resultados del mercado laboral de los asalariados en el Perú:
+
+- **Y1:** logaritmo del ingreso mensual de la ocupación principal.
+- **Y2:** horas trabajadas a la semana en la ocupación principal.
+
+Para ello se usan **19 predictoras** (características personales, del hogar, de la ubicación y del empleo) y se comparan varios modelos predictivos con métricas de validación.
+
+## Arquitectura del pipeline
+
+Este proyecto Quarto es la **arquitectura local** del pipeline: cada etapa es una página que lee lo que dejó la anterior y guarda sus resultados en disco. Así el trabajo se puede reproducir de punta a punta con un solo comando (`quarto render`).
+
+```{mermaid}
+flowchart LR
+  A[("CSV del INEI<br/>módulos 200, 300, 500<br/>2014–2025")] --> B["1. Integración<br/>inventario y unión"]
+  B --> C[("datos/interim<br/>base unida por año")]
+  C --> D["2. Limpieza<br/>faltantes y recodificación"]
+  D --> E[("datos/processed<br/>base_modelo.csv.gz")]
+  E --> F["3. Exploración"]
+  E --> G["4. Modelado<br/>tidymodels"]
+  G --> H["5. Validación<br/>métricas"]
+  G --> I["6. Interpretabilidad"]
+  H --> J["Dashboard"]
+  I --> J
+  H --> N["7. MLOps<br/>registro, API, monitoreo"]
+  N --> K["8. Despliegue<br/>PostgreSQL"]
+  E --> L["9. Datos abiertos<br/>Zenodo (DOI)"]
+  N --> M["Código<br/>GitHub + Actions"]
+```
+
+| Etapa | Página | Entrada | Salida |
+|---|---|---|---|
+| 1. Integración | `01-integracion.qmd` | `datos/raw/` (CSV del INEI) | `datos/interim/enaho_unida_AAAA.rds` |
+| 2. Limpieza | `02-limpieza.qmd` | `datos/interim/` | `datos/processed/base_modelo.csv.gz` |
+| 3. Exploración | `03-exploracion.qmd` | `base_modelo` | gráficos descriptivos |
+| 4. Modelado | `04-modelado.qmd` | `base_modelo` | `outputs/` (métricas, predicciones, coeficientes) |
+| 5. Validación | `05-validacion.qmd` | `outputs/` | comparación de modelos |
+| 6. Interpretabilidad | `06-interpretabilidad.qmd` | `outputs/` | efectos e importancia de variables |
+| 7. MLOps | `07-mlops.qmd` | `base_modelo`, mejor modelo | registro de modelos con versiones, API, monitoreo por año |
+| 8. Despliegue | `08-despliegue.qmd` | `base_modelo`, `outputs/` | tablas en PostgreSQL |
+| 9. Disponibilidad de datos | `09-disponibilidad-datos.qmd` | — | GitHub (código) y Zenodo (datos, DOI) |
+| Dashboard | `dashboard.qmd` | `outputs/` | tablero de resultados |
+
+## Estructura de carpetas
+
+```
+enaho-regresion-multivariada/
+├── _quarto.yml               configuración del proyecto Quarto
+├── index.qmd ... 09-*.qmd    etapas del pipeline
+├── dashboard.qmd             tablero de resultados
+├── R/                        funciones reutilizables
+│   ├── 00_config.R           rutas, semilla y parámetros
+│   ├── 01_funciones_integracion.R
+│   ├── 02_funciones_limpieza.R
+│   ├── 03_funciones_modelado.R
+│   └── instalar_paquetes.R
+├── datos/
+│   ├── raw/                  CSV originales del INEI   (no se suben a GitHub)
+│   ├── interim/              base unida por año        (no se sube a GitHub)
+│   └── processed/            base_modelo               (se publica en Zenodo)
+├── outputs/                  tablas, figuras y registro de modelos
+├── api/                      APIs de predicción (plumber) generadas por vetiver
+├── .github/workflows/        publicación automática (GitHub Actions)
+├── imagenes/                 logo
+├── docs/                     sitio web generado        (GitHub Pages)
+├── README.md
+├── LISTA_REPRODUCIBILIDAD.md
+└── CITATION.cff
+```
+
+## Cómo reproducir
+
+1. Clonar el repositorio de GitHub.
+2. Instalar los paquetes: `source("R/instalar_paquetes.R")` o, mejor, `renv::restore()` para obtener las mismas versiones.
+3. Obtener los datos, de una de estas dos formas:
+   - **Desde cero:** descargar los módulos 200, 300 y 500 de 2014 a 2025 del portal de microdatos del INEI y copiarlos en `datos/raw/`.
+   - **Directo al modelo:** descargar `base_modelo.csv.gz` desde Zenodo (ver [Disponibilidad de datos](09-disponibilidad-datos.qmd)) y copiarlo en `datos/processed/`. Las etapas 1 y 2 se saltan solas.
+4. En la terminal, dentro de la carpeta del proyecto: `quarto render`.

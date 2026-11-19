@@ -1,0 +1,89 @@
+---
+title: "3. Exploración de los datos"
+description: "Distribución de las variables objetivo y su relación con las principales predictoras"
+---
+
+```{r}
+#| label: setup
+#| include: false
+source(here::here("R", "00_config.R"))
+base_modelo <- read_csv(archivo_base_modelo, show_col_types = FALSE)
+```
+
+## 3.1 Variables objetivo
+
+```{r}
+#| label: fig-objetivos
+#| fig-cap: "Distribución de las dos variables objetivo"
+#| fig-width: 9
+#| fig-height: 3.5
+base_modelo %>%
+  select(`Y1: ln ingreso mensual` = y1_ln_ingreso_mensual,
+         `Y2: horas semanales` = y2_horas_semanales) %>%
+  pivot_longer(everything()) %>%
+  ggplot(aes(value)) +
+  geom_histogram(bins = 60, fill = "#2F5496") +
+  facet_wrap(~ name, scales = "free") +
+  labs(x = NULL, y = "Personas")
+```
+
+```{r}
+#| label: resumen-objetivos
+base_modelo %>%
+  summarise(across(all_of(objetivos),
+                   list(media = mean, mediana = median, de = sd, min = min, max = max))) %>%
+  pivot_longer(everything(), names_to = c("variable", ".value"),
+               names_pattern = "(y[12]_.*)_(media|mediana|de|min|max)") %>%
+  mutate(across(where(is.numeric), ~ round(.x, 2)))
+```
+
+**¿Por qué una regresión multivariada?** Las dos variables objetivo están relacionadas: la correlación entre el logaritmo del ingreso y las horas trabajadas es **`r round(cor(base_modelo$y1_ln_ingreso_mensual, base_modelo$y2_horas_semanales), 3)`**. Modelarlas juntas permite analizar los efectos de las predictoras sobre ambas al mismo tiempo.
+
+## 3.2 Relación con las principales predictoras
+
+```{r}
+#| label: fig-educacion
+#| fig-cap: "Ingreso y horas según años de educación"
+#| fig-width: 9
+#| fig-height: 3.5
+base_modelo %>%
+  group_by(anios_educ) %>%
+  summarise(`Ingreso mensual promedio (S/)` = mean(exp(y1_ln_ingreso_mensual)),
+            `Horas semanales promedio` = mean(y2_horas_semanales), n = n()) %>%
+  filter(n >= 100) %>%
+  pivot_longer(-c(anios_educ, n)) %>%
+  ggplot(aes(anios_educ, value)) +
+  geom_line(color = "#2F5496") + geom_point(color = "#2F5496") +
+  facet_wrap(~ name, scales = "free_y") +
+  labs(x = "Años de educación", y = NULL)
+```
+
+```{r}
+#| label: fig-anio
+#| fig-cap: "Asalariados e ingreso mensual promedio por año (2020 en naranja)"
+#| fig-width: 9
+#| fig-height: 3.5
+base_modelo %>%
+  group_by(anio) %>%
+  summarise(`Asalariados` = n(),
+            `Ingreso mensual promedio (S/)` = mean(exp(y1_ln_ingreso_mensual))) %>%
+  pivot_longer(-anio) %>%
+  ggplot(aes(factor(anio), value, fill = anio == 2020)) +
+  geom_col() +
+  facet_wrap(~ name, scales = "free_y") +
+  scale_fill_manual(values = c(`FALSE` = "#2F5496", `TRUE` = "#C55A11"), guide = "none") +
+  scale_y_continuous(labels = scales::label_comma()) +
+  labs(x = NULL, y = NULL) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+```
+
+```{r}
+#| label: categoricas
+base_modelo %>%
+  select(mujer, urbano, sector_publico, afiliado_pensiones, all_of(objetivos)) %>%
+  pivot_longer(c(mujer, urbano, sector_publico, afiliado_pensiones), names_to = "variable", values_to = "valor") %>%
+  group_by(variable, valor) %>%
+  summarise(personas = n(),
+            ingreso_mensual = round(mean(exp(y1_ln_ingreso_mensual))),
+            horas_semanales = round(mean(y2_horas_semanales), 1), .groups = "drop")
+```

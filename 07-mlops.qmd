@@ -1,0 +1,161 @@
+---
+title: "7. MLOps"
+description: "Registro y versionado de modelos, API de predicción, monitoreo del desempeño y automatización"
+---
+
+```{r}
+#| label: setup
+#| include: false
+source(here::here("R", "00_config.R"))
+source(here::here("R", "03_funciones_modelado.R"))
+suppressPackageStartupMessages({
+  library(vetiver)   # empaqueta, versiona, despliega y monitorea modelos de tidymodels
+  library(pins)      # registro de modelos con versiones
+})
+```
+
+**MLOps** (*Machine Learning Operations*) es el conjunto de prácticas para llevar un modelo del análisis a la operación y mantenerlo funcionando. En este proyecto se aplican cinco:
+
+| Práctica | Cómo se aplica | Herramienta |
+|---|---|---|
+| Pipeline automatizado | Todo se ejecuta con un solo comando: `quarto render` | Quarto |
+| Versionado del código | Historial de cambios y releases | Git y GitHub |
+| Registro y versionado de modelos | Cada modelo se guarda con sus métricas, su fecha y un número de versión | `vetiver` y `pins` |
+| Despliegue | El modelo se publica como una API y los resultados se guardan en PostgreSQL | `vetiver` + `plumber`, PostgreSQL |
+| Monitoreo | Se mide el desempeño del modelo año por año para detectar si se deteriora | `vetiver_compute_metrics()` |
+
+## 7.1 Modelo final por variable objetivo
+
+Se despliega, para cada variable objetivo, el modelo con menor RMSE en el conjunto de prueba (ver [Validación](05-validacion.qmd)).
+
+```{r}
+#| label: modelo-final
+mejores <- read_csv(file.path(rutas$tablas, "mejor_modelo.csv"), show_col_types = FALSE)
+metricas_prueba <- read_csv(file.path(rutas$tablas, "metricas_prueba.csv"), show_col_types = FALSE)
+
+datos <- leer_base_modelo()
+p     <- particionar(datos)          # misma partición que en el modelado (misma semilla)
+
+ajustes <- map(set_names(objetivos), function(obj) {
+  modelo <- mejores$mejor_modelo[mejores$objetivo == obj]
+  ajustar_workflow(obj, modelo, p$entrenamiento)
+})
+mejores
+```
+
+## 7.2 Registro y versionado de modelos
+
+Cada modelo se guarda en un **registro** (`outputs/modelos/registro/`) con su versión y sus metadatos: el tipo de modelo, las métricas de prueba, la semilla y la fecha. Cada vez que se vuelve a entrenar se crea una versión nueva y las anteriores se conservan, así se puede volver a cualquiera de ellas.
+
+```{r}
+#| label: registro
+registro <- board_folder(file.path(rutas$modelos, "registro"), versioned = TRUE)
+
+walk(objetivos, function(obj) {
+  modelo <- mejores$mejor_modelo[mejores$objetivo == obj]
+  v <- vetiver_model(
+    ajustes[[obj]],
+    model_name = paste0("enaho_", obj),
+    description = paste("Modelo", modelo, "para", obj, "- ENAHO 2014-2025, asalariados"),
+    metadata = list(
+      modelo   = modelo,
+      semilla  = semilla,
+      metricas = metricas_prueba %>% filter(objetivo == obj, modelo == !!modelo) %>%
+        select(metrica, valor) %>% deframe() %>% as.list()))
+  vetiver_pin_write(registro, v)
+})
+
+versiones <- map_dfr(objetivos, function(obj) {
+  pin_versions(registro, paste0("enaho_", obj)) %>% mutate(modelo = paste0("enaho_", obj))
+})
+guardar_tabla(versiones, "registro_versiones_modelos")
+versiones
+```
+
+## 7.3 Despliegue del modelo como API
+
+`vetiver` genera automáticamente una **API REST** con `plumber`. Otra aplicación (por ejemplo, un sistema web) puede enviarle los datos de una persona y recibir la predicción de su ingreso o de sus horas.
+
+```{r}
+#| label: api
+dir.create(here("api"), showWarnings = FALSE)
+walk(objetivos, function(obj) {
+  vetiver_write_plumber(registro, paste0("enaho_", obj),
+                        file = here("api", paste0("plumber_", obj, ".R")))
+})
+list.files(here("api"))
+```
+
+Para levantar la API del ingreso en tu computadora:
+
+```r
+plumber::pr("api/plumber_y1_ln_ingreso_mensual.R") |> plumber::pr_run(port = 8000)
+# Documentación interactiva: http://127.0.0.1:8000/__docs__/
+```
+
+## 7.4 Monitoreo del desempeño por año
+
+En producción, un modelo puede perder precisión con el tiempo si cambian las condiciones del mercado laboral (*data drift*). Aquí se simula ese monitoreo midiendo el desempeño en el conjunto de prueba **año por año**.
+
+```{r}
+#| label: monitoreo
+monitoreo <- map_dfr(objetivos, function(obj) {
+  p$prueba %>%
+    mutate(.pred = predict(ajustes[[obj]], select(p$prueba, all_of(predictoras)))$.pred,
+           real  = .data[[obj]],
+           fecha = as.Date(paste0(anio, "-07-01"))) %>%
+    vetiver_compute_metrics(fecha, "year", real, .pred, metric_set = metricas) %>%
+    mutate(objetivo = obj)
+})
+guardar_tabla(monitoreo, "monitoreo_por_anio")
+```
+
+```{r}
+#| label: fig-monitoreo
+#| fig-cap: "Desempeño del modelo final por año en el conjunto de prueba"
+#| fig-width: 9
+#| fig-height: 5
+monitoreo %>%
+  mutate(objetivo = recode(objetivo, y1_ln_ingreso_mensual = "Y1: ln ingreso mensual",
+                           y2_horas_semanales = "Y2: horas semanales")) %>%
+  ggplot(aes(.index, .estimate)) +
+  geom_line(color = "#2F5496") +
+  geom_point(aes(color = lubridate::year(.index) == 2020), size = 2, show.legend = FALSE) +
+  scale_color_manual(values = c(`FALSE` = "#2F5496", `TRUE` = "#C55A11")) +
+  facet_grid(.metric ~ objetivo, scales = "free_y") +
+  labs(x = NULL, y = NULL)
+```
+
+Si en un año el RMSE sube o el R² baja mucho respecto a los demás, el modelo debe revisarse o reentrenarse con datos nuevos. 2020 aparece en naranja porque la encuesta se aplicó en parte por teléfono durante la pandemia.
+
+## 7.5 Automatización con GitHub Actions (CI/CD)
+
+El archivo `.github/workflows/publicar.yml` publica el sitio en **GitHub Pages** cada vez que se sube un cambio a la rama `main`. Gracias a `freeze: auto`, GitHub reutiliza los resultados guardados en `_freeze/` y no necesita los datos ni volver a entrenar los modelos.
+
+```yaml
+on:
+  push:
+    branches: main
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: quarto-dev/quarto-actions/setup@v2
+      - uses: quarto-dev/quarto-actions/publish@v2
+        with:
+          target: gh-pages
+```
+
+## 7.6 Ciclo completo
+
+```{mermaid}
+flowchart LR
+  A["Datos nuevos<br/>(ENAHO de otro año)"] --> B["quarto render<br/>pipeline completo"]
+  B --> C["Registro de modelos<br/>nueva versión"]
+  C --> D["API plumber<br/>predicciones"]
+  C --> E["PostgreSQL<br/>resultados"]
+  D --> F["Monitoreo<br/>métricas por año"]
+  F -- "si el desempeño baja" --> B
+  B --> G["git push"] --> H["GitHub Actions<br/>publica el sitio"]
+```

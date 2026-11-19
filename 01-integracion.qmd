@@ -1,0 +1,86 @@
+---
+title: "1. Integración de los módulos"
+description: "Inventario de variables y unión de los módulos 200, 300 y 500 de la ENAHO 2014–2025"
+---
+
+```{r}
+#| label: setup
+#| include: false
+source(here::here("R", "00_config.R"))
+source(here::here("R", "01_funciones_integracion.R"))
+```
+
+La ENAHO se publica por año y por módulo. Esta etapa **inventaría** las variables de los 36 archivos CSV (3 módulos × 12 años) y **une** los módulos de cada año en una sola base, usando las 4 llaves que identifican a cada persona: `conglome`, `vivienda`, `hogar` y `codperso`.
+
+```{r}
+#| label: decidir
+# La etapa solo se ejecuta si faltan resultados; si ya existen (o si se descargó
+# base_modelo desde Zenodo), se reutilizan.
+info <- buscar_archivos(rutas$raw)
+interim_listo <- all(file.exists(file.path(rutas$interim, sprintf("enaho_unida_%d.rds", anios))))
+hay_raw       <- nrow(info) > 0
+ejecutar      <- hay_raw && !interim_listo
+cat("Archivos CSV encontrados en datos/raw:", nrow(info),
+    "| base unida ya generada:", interim_listo,
+    "| se ejecuta la integración:", ejecutar, "\n")
+```
+
+## 1.1 Inventario de variables
+
+Se lee **solo el encabezado** de cada archivo y se cuenta en qué módulos y años aparece cada variable. Solo se usan las variables presentes en los 12 años, para que la base sea comparable en toda la serie.
+
+```{r}
+#| label: inventario
+archivo_inventario <- file.path(rutas$tablas, "inventario_variables.csv")
+if (hay_raw && !file.exists(archivo_inventario)) {
+  inventario <- inventario_variables(info)
+  guardar_tabla(inventario, "inventario_variables")
+  guardar_tabla(info %>% transmute(modulo, anio, archivo = basename(ruta), mb), "archivos_leidos")
+}
+
+if (file.exists(archivo_inventario)) {
+  inventario <- read_csv(archivo_inventario, show_col_types = FALSE)
+  vars_12    <- filter(inventario, en_todos_los_anios)
+  tibble(Indicador = c("Variables distintas (cada una contada una vez)",
+                       "Presentes en los 12 años", "Solo en algunos años"),
+         Valor = fmt(c(nrow(inventario), nrow(vars_12), nrow(inventario) - nrow(vars_12))))
+} else {
+  cat("No hay CSV del INEI en datos/raw: se omite el inventario.")
+}
+```
+
+## 1.2 Unión de los módulos
+
+Para cada año, el módulo 200 (todas las personas) es la base y se le pegan los módulos 300 y 500 con `left_join()`. El argumento `relationship = "one-to-one"` detiene el proceso si una persona aparece dos veces, lo que garantiza que no se dupliquen filas. Durante la lectura, la función `limpiar_col()` corrige los decimales escritos con coma (`12000,5` → `12000.5`).
+
+```{r}
+#| label: union
+archivo_resumen <- file.path(rutas$tablas, "resumen_union.csv")
+if (ejecutar) {
+  vars_mod <- map(set_names(c("200", "300", "500")), function(m) {
+    vars_12 %>% filter(modulo_origen == m, variable != "anio", !variable %in% llaves) %>% pull(variable)
+  })
+  orden <- c("anio", llaves, unlist(vars_mod, use.names = FALSE))
+
+  resultados <- map(anios, unir_anio, info = info, vars_mod = vars_mod, orden = orden) %>% compact()
+  guardar_tabla(map_dfr(resultados, "resumen"), "resumen_union")
+  guardar_tabla(map_dfr(resultados, "coma"),    "decimales_coma")
+}
+
+if (file.exists(archivo_resumen)) {
+  resumen_union <- read_csv(archivo_resumen, show_col_types = FALSE)
+  resumen_union
+}
+```
+
+```{r}
+#| label: verificacion
+if (exists("resumen_union")) {
+  sin_perdidas <- all(resumen_union$filas_unida == resumen_union$filas_mod_200)
+  cat("Personas en la base unida:", fmt(sum(resumen_union$filas_unida)),
+      "| columnas:", max(resumen_union$columnas),
+      "| mismas filas que el módulo 200 en todos los años:", sin_perdidas, "\n")
+}
+```
+
+Los módulos 300 y 500 tienen menos filas **por diseño de la encuesta**: el 300 solo incluye a las personas de 3 años a más y el 500 a las de 14 años a más.
