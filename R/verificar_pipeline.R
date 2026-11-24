@@ -56,10 +56,10 @@ huellas <- tibble(
   sha256 = vapply(archivos_datos, huella, character(1), USE.NAMES = FALSE)
 )
 write_csv(huellas, file.path(rutas$tablas, "huellas_sha256.csv"))
+bases <- file.path(rutas$processed,
+                   c("base_modelo.csv.gz", "base_seleccion.csv.gz", "base_contexto.csv.gz"))
 chequear("Datos", "Bases procesadas presentes (modelo, selección, contexto)",
-         all(file.exists(file.path(rutas$processed,
-             c("base_modelo.csv.gz", "base_seleccion.csv.gz", "base_contexto.csv.gz")))),
-         paste(sum(grepl("processed", huellas$archivo)), "archivos"), "3 archivos")
+         all(file.exists(bases)), paste(sum(file.exists(bases)), "de 3"), "3 de 3")
 cat("  ", nrow(huellas), "archivos con huella guardada en huellas_sha256.csv\n")
 
 # ---------------------------------------------------------------------

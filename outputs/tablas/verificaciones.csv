@@ -1,5 +1,5 @@
 etapa,verificacion,obtenido,esperado,cumple
-Datos,"Bases procesadas presentes (modelo, selección, contexto)",4 archivos,3 archivos,TRUE
+Datos,"Bases procesadas presentes (modelo, selección, contexto)",3 de 3,3 de 3,TRUE
 Datos,Filas de base_modelo = último paso del embudo,"288,241","288,241",TRUE
 Datos,El embudo solo disminuye en cada paso,"1,512,409 > 1,081,583 > 309,026 > 306,784 > 288,241",decreciente,TRUE
 Datos,Sin personas repetidas (año + conglome + vivienda + hogar + codperso),0,0,TRUE
