@@ -1,0 +1,32 @@
+etapa,verificacion,obtenido,esperado,cumple
+Datos,"Bases procesadas presentes (modelo, selección, contexto)",4 archivos,3 archivos,TRUE
+Datos,Filas de base_modelo = último paso del embudo,"288,241","288,241",TRUE
+Datos,El embudo solo disminuye en cada paso,"1,512,409 > 1,081,583 > 309,026 > 306,784 > 288,241",decreciente,TRUE
+Datos,Sin personas repetidas (año + conglome + vivienda + hogar + codperso),0,0,TRUE
+Datos,Los 12 años (2014–2025) están presentes,2014–2025,2014–2025,TRUE
+Datos,"Sin faltantes en Y1, Y2 y las 19 predictoras",0,0,TRUE
+Datos,Ingreso mensual positivo (Y1 finito),1.61 a 10.46,finito,TRUE
+Datos,Horas por semana entre 1 y 168,1 a 98,1 a 168,TRUE
+Datos,Edad de 14 años a más,14,>= 14,TRUE
+Heckman,Personas de 14 años a más en la base de selección,"1,057,986",todas >= 14,TRUE
+Heckman,Sin personas repetidas en la base de selección,0,0,TRUE
+Heckman,Asalariados de la selección ≈ filas de base_modelo (diferencia < 1 %),"288,241","≈ 288,241",TRUE
+Predictivo,Entrenamiento + prueba = total,"288,241","288,241",TRUE
+Predictivo,Partición 80/20,0.8,0.8,TRUE
+Predictivo,Random Forest tiene el menor RMSE en Y1 y Y2,"random_forest, random_forest",random_forest,TRUE
+Predictivo,"R² de prueba y de validación cruzada difieren < 0,03 (sin sobreajuste)",0.013,< 0.03,TRUE
+Predictivo,La semilla 2026 reproduce los mismos números aleatorios,822905 18726 788079 711788 234672,idénticos,TRUE
+Heckman,"Todos los predictores con Pillai significativo (p < 0,05)",19,todos,TRUE
+Heckman,Residuos de Y1 y Y2 correlacionados (justifica el modelo multivariado),0.424,> 0.1,TRUE
+Heckman,λ negativa en Y1 y Y2 (selección negativa),-0.166 y -6.865,< 0,TRUE
+Heckman,λ conjuntamente significativa (Pillai),6.64e-73,< 0.05,TRUE
+Heckman,"λ no es combinación lineal exacta de X (R² < 0,99)",0.957,< 0.99,TRUE
+Heckman,Retorno de la educación menor con Heckman que con MCO,2.68 / 1.91,Heckman < MCO,TRUE
+Heckman,heckit (sampleSelection) da λ con el mismo signo,-0.234 y -8.29,< 0,TRUE
+Segmentos,Heckman estimado en los 25 departamentos,25,25,TRUE
+Segmentos,Puno (21) incluido,21,presente,TRUE
+Segmentos,Interacciones con la región significativas,4,todas p < 0.05,TRUE
+Segmentos,k elegido por silueta = número de grupos usado,2,igual,TRUE
+Entorno,Paquetes instalados = renv.lock,TRUE,TRUE,TRUE
+Entorno,Versión de R registrada,R version 4.6.1 (2026-06-24 ucrt),,TRUE
+Entorno,Quarto disponible,1.11.9,,TRUE

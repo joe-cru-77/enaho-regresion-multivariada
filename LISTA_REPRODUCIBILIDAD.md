@@ -46,6 +46,16 @@ Marcar cada actividad cuando esté hecha (`[x]`).
 - [ ] Sitio publicado con GitHub Pages (carpeta `docs/`).
 - [ ] Release `v1.0.0` creada al terminar.
 
+## 5b. Análisis econométrico
+
+- [ ] Base de selección (`base_seleccion.csv.gz`) construida con todas las personas de 14 años a más.
+- [ ] Restricciones de exclusión justificadas (`n_menores6`, `n_mayores65`).
+- [ ] Modelo bietápico de Heckman estimado y verificado con `sampleSelection::heckit()`.
+- [ ] Resultados ponderados con `fac500a` y el diseño muestral (`survey`).
+- [ ] Variables de contexto (departamento y empleo informal) en `base_contexto.csv.gz`.
+- [ ] Efectos comparados por región, departamento (Puno), formalidad, rubro y grupos de departamentos (*k-means*).
+- [ ] Modelos predictivos globales frente a modelos por segmento.
+
 ## 6. Publicación de datos (DOI)
 
 - [ ] `base_modelo.csv.gz` y su diccionario publicados en **Zenodo** (o Mendeley Data / Dataverse).
@@ -64,7 +74,7 @@ Marcar cada actividad cuando esté hecha (`[x]`).
 ## 8. Despliegue
 
 - [ ] Credenciales de PostgreSQL en `.Renviron` (nunca en el código).
-- [ ] `base_modelo` y los resultados cargados en PostgreSQL (`08-despliegue.qmd`).
+- [ ] `base_modelo` y los resultados cargados en PostgreSQL (`10-despliegue.qmd`).
 - [ ] Conteo de filas verificado entre R y PostgreSQL.
 - [ ] Dashboard con los resultados (`dashboard.qmd`).
 

@@ -1,0 +1,279 @@
+---
+title: "7. Modelo bietápico de Heckman"
+description: "Corrección del sesgo de selección: solo se observa el ingreso y las horas de quienes trabajan como asalariados"
+---
+
+```{r}
+#| label: setup
+#| include: false
+source(here::here("R", "00_config.R"))
+source(here::here("R", "02_funciones_limpieza.R"))
+source(here::here("R", "03_funciones_modelado.R"))
+source(here::here("R", "04_funciones_econometria.R"))
+
+base_modelo <- leer_base_modelo()
+interim_listo <- all(file.exists(file.path(rutas$interim, sprintf("enaho_unida_%d.rds", anios))))
+archivo_lambda <- file.path(rutas$processed, "lambda_heckman.csv.gz")
+
+terminos_clave <- c(anios_educ = "Años de educación", mujer = "Mujer",
+                    sector_publico = "Sector público", afiliado_pensiones = "Afiliado a pensiones",
+                    lambda = "λ (razón inversa de Mills)")
+etiqueta_obj <- c(y1_ln_ingreso_mensual = "Y1: ln ingreso mensual",
+                  y2_horas_semanales = "Y2: horas semanales")
+```
+
+## 7.1 ¿Por qué un modelo en dos etapas?
+
+La base del modelo solo contiene a las personas que **trabajan como asalariadas**. De quienes no trabajan, trabajan de forma independiente o son trabajadores familiares no se observa un salario. Si las personas que llegan a ser asalariadas son distintas del resto en características que no se miden (motivación, redes, responsabilidades de cuidado), los coeficientes estimados solo con los asalariados están **sesgados**. Es el **sesgo de selección**.
+
+El método bietápico de Heckman lo corrige en dos pasos:
+
+1. **Etapa 1 (selección):** un modelo *probit* estima, para todas las personas de 14 años a más, la probabilidad de ser asalariado:
+   $$P(S_i = 1) = \Phi(\mathbf{z}_i^{\top}\boldsymbol{\gamma}).$$
+   Con él se calcula la **razón inversa de Mills** de cada asalariado, $\lambda_i = \phi(\mathbf{z}_i^{\top}\hat{\boldsymbol{\gamma}}) / \Phi(\mathbf{z}_i^{\top}\hat{\boldsymbol{\gamma}})$.
+2. **Etapa 2 (resultados):** la regresión multivariada del ingreso y las horas se estima agregando $\lambda_i$ como predictora:
+   $$\begin{pmatrix} Y_{1i} \\ Y_{2i} \end{pmatrix} = \mathbf{B}^{\top}\mathbf{x}_i + \begin{pmatrix} \theta_1 \\ \theta_2 \end{pmatrix} \lambda_i + \boldsymbol{\varepsilon}_i .$$
+   Si $\theta_1$ o $\theta_2$ son distintos de cero, había sesgo de selección y los coeficientes $\mathbf{B}$ corregidos son los que deben interpretarse.
+
+Para que el modelo esté bien identificado, la etapa 1 incluye **restricciones de exclusión**: variables que influyen en la decisión de trabajar como asalariado, pero no en el ingreso ni en las horas de quien ya trabaja. Siguiendo la especificación habitual de la literatura, son variables de **composición del hogar y posición en él**:
+
+- **`n_menores6`**: número de niños menores de 6 años en el hogar (carga de cuidado), también en interacción con `mujer`, porque esa carga recae sobre todo en las mujeres;
+- **`n_mayores65`**: número de adultos mayores de 65 años en el hogar;
+- **`casado_conviviente`**, **`jefe_hogar`** y **`tam_hogar`**: estado civil, ser jefe del hogar y tamaño del hogar.
+
+Por eso estas tres últimas variables, que en los modelos predictivos son predictoras, **no entran en la ecuación de resultados** del modelo de Heckman. Sin ellas, la identificación dependería solo de la forma no lineal del probit: en una primera versión con solo `n_menores6` y `n_mayores65`, λ resultó casi colineal con la educación, el sexo y la edad, y absorbía sus efectos (por ejemplo, el retorno de la educación salía negativo). El diagnóstico de la sección 7.4 mide este problema.
+
+## 7.2 Base de selección
+
+```{r}
+#| label: base-seleccion
+if (!file.exists(archivo_base_seleccion) && interim_listo) {
+  unida <- leer_base_unida()
+  seleccion <- construir_base_seleccion(unida, base_modelo)
+  write_csv(seleccion, archivo_base_seleccion)
+  rm(unida); invisible(gc())
+}
+hay_seleccion <- file.exists(archivo_base_seleccion)
+if (!hay_seleccion) {
+  cat("No está la base de selección (datos/processed/base_seleccion.csv.gz).",
+      "Se necesita la base unida (etapa 1) o descargarla de Zenodo.\n")
+}
+```
+
+```{r}
+#| label: resumen-seleccion
+#| eval: !expr hay_seleccion
+seleccion <- leer_base_seleccion()
+
+resumen_sel <- seleccion %>%
+  mutate(sexo = if_else(mujer == 1, "Mujeres", "Hombres"),
+         region = etiqueta_region[as.character(region)]) %>%
+  group_by(region, sexo) %>%
+  summarise(personas = n(), asalariados = sum(asalariado),
+            tasa = 100 * mean(asalariado), .groups = "drop")
+guardar_tabla(resumen_sel, "heckman_base_seleccion")
+
+resumen_sel %>%
+  select(-asalariados) %>%
+  pivot_wider(names_from = sexo, values_from = c(personas, tasa)) %>%
+  transmute(Región = region,
+            `Personas (hombres)` = fmt(personas_Hombres), `% asalariados (hombres)` = round(tasa_Hombres, 1),
+            `Personas (mujeres)` = fmt(personas_Mujeres), `% asalariadas (mujeres)` = round(tasa_Mujeres, 1))
+```
+
+La base de selección tiene **`r if (hay_seleccion) fmt(nrow(seleccion)) else "—"` personas** de 14 años a más, de las cuales el **`r if (hay_seleccion) round(100 * mean(seleccion$asalariado), 1) else "—"` %** son asalariados de la base del modelo. Se excluyen los asalariados que no entraron a `base_modelo` por tener datos faltantes, porque no se sabe a qué grupo pertenecen.
+
+## 7.3 Etapa 1: probabilidad de ser asalariado (probit)
+
+```{r}
+#| label: etapa1
+#| eval: !expr hay_seleccion
+e1 <- etapa1_probit(seleccion)
+write_csv(e1$lambda, archivo_lambda)
+guardar_tabla(e1$coeficientes, "heckman_probit")
+guardar_tabla(e1$efectos_exclusion, "heckman_efectos_exclusion")
+
+e1$coeficientes %>%
+  filter(!str_detect(term, "anio|Intercept")) %>%
+  transmute(variable = term, coeficiente = round(estimate, 4),
+            error_est = round(std.error, 4), z = round(statistic, 1), p_valor = signif(p.value, 3))
+```
+
+**Efecto marginal promedio** de las restricciones de exclusión (cambio en la probabilidad de ser asalariado, en puntos porcentuales):
+
+```{r}
+#| label: efectos-exclusion
+#| eval: !expr hay_seleccion
+e1$efectos_exclusion %>%
+  mutate(`Efecto (puntos porcentuales)` = round(100 * efecto_marginal, 2)) %>%
+  select(Variable = variable, `Efecto (puntos porcentuales)`)
+```
+
+```{r}
+#| label: fig-prob-asalariado
+#| fig-cap: "Probabilidad estimada de ser asalariado según el número de niños menores de 6 años en el hogar, por sexo"
+#| fig-width: 8
+#| fig-height: 3.8
+#| eval: !expr hay_seleccion
+seleccion %>%
+  select(all_of(llaves_persona), mujer, n_menores6) %>%
+  llaves_numericas() %>%
+  inner_join(e1$lambda, by = llaves_persona) %>%
+  mutate(n_menores6 = pmin(n_menores6, 3),
+         sexo = if_else(mujer == 1, "Mujeres", "Hombres")) %>%
+  group_by(sexo, n_menores6) %>%
+  summarise(prob = mean(prob_asalariado), .groups = "drop") %>%
+  ggplot(aes(n_menores6, 100 * prob, color = sexo)) +
+  geom_line(linewidth = 1.1) + geom_point(size = 2.5) +
+  scale_x_continuous(breaks = 0:3, labels = c("0", "1", "2", "3 o más")) +
+  scale_color_manual(values = c(Hombres = "#2F5496", Mujeres = "#C55A11")) +
+  labs(x = "Niños menores de 6 años en el hogar", y = "Probabilidad de ser asalariado (%)", color = NULL)
+```
+
+## 7.4 Etapa 2: regresión multivariada corregida
+
+```{r}
+#| label: etapa2
+#| eval: !expr hay_seleccion
+e2 <- etapa2_multivariada(base_modelo, e1$lambda)
+
+comparacion <- bind_rows(coeficientes_mv(e2$sin_correccion, "MCO sin corrección"),
+                         coeficientes_mv(e2$heckman, "Heckman bietápico"))
+guardar_tabla(comparacion, "heckman_coeficientes")
+
+pillai_heckman <- pillai_mv(e2$heckman)
+guardar_tabla(pillai_heckman, "heckman_pillai")
+
+comparacion %>%
+  filter(termino %in% names(terminos_clave)) %>%
+  mutate(efecto = if_else(objetivo == objetivos[1] & termino != "lambda",
+                          sprintf("%+.1f %%", 100 * (exp(estimacion) - 1)),
+                          sprintf("%+.3f", estimacion)),
+         variable = terminos_clave[termino], objetivo = etiqueta_obj[objetivo]) %>%
+  select(objetivo, variable, modelo, efecto) %>%
+  pivot_wider(names_from = modelo, values_from = efecto) %>%
+  arrange(objetivo)
+```
+
+En Y1 los efectos se expresan como **% de cambio en el ingreso**, $100(e^{b}-1)$; en Y2, como **horas por semana**. La fila de λ muestra el coeficiente $\theta$ de la razón inversa de Mills.
+
+```{r}
+#| label: fig-heckman-comparacion
+#| fig-cap: "Coeficientes con intervalo de confianza del 95 %: sin corrección frente a Heckman bietápico"
+#| fig-width: 9
+#| fig-height: 4.5
+#| eval: !expr hay_seleccion
+comparacion %>%
+  filter(termino %in% setdiff(names(terminos_clave), "lambda")) %>%
+  mutate(variable = terminos_clave[termino], objetivo = etiqueta_obj[objetivo]) %>%
+  ggplot(aes(estimacion, variable, color = modelo)) +
+  geom_vline(xintercept = 0, color = "grey60") +
+  geom_pointrange(aes(xmin = ic_inf, xmax = ic_sup), position = position_dodge(width = 0.5)) +
+  facet_wrap(~ objetivo, scales = "free_x") +
+  scale_color_manual(values = c(`MCO sin corrección` = "#8FAADC", `Heckman bietápico` = "#C55A11")) +
+  labs(x = "Coeficiente", y = NULL, color = NULL) +
+  theme(legend.position = "bottom")
+```
+
+**Diagnóstico de identificación.** Si λ se puede explicar casi por completo con las predictoras de la ecuación de resultados, los coeficientes corregidos no son confiables. El R² de esa regresión es:
+
+```{r}
+#| label: diagnostico
+#| eval: !expr hay_seleccion
+guardar_tabla(tibble(r2_lambda = e2$r2_lambda), "heckman_diagnostico")
+tibble(`R² de λ explicada por las predictoras` = round(e2$r2_lambda, 3),
+       Lectura = case_when(e2$r2_lambda > 0.9 ~ "Colinealidad alta: identificación débil",
+                           e2$r2_lambda > 0.7 ~ "Colinealidad moderada: interpretar con cautela",
+                           TRUE ~ "Identificación adecuada"))
+```
+
+En la comparación, el modelo «MCO sin corrección» usa las mismas predictoras que la ecuación de resultados de Heckman (sin estado civil, jefatura ni tamaño del hogar), por lo que sus coeficientes pueden diferir levemente de los de la etapa 4.
+
+**¿Hay sesgo de selección?** La prueba de Pillai de λ (la última variable del modelo, por lo que se evalúa después de todas las demás) indica si la razón inversa de Mills afecta **a la vez** al ingreso y a las horas:
+
+```{r}
+#| label: pillai-lambda
+#| eval: !expr hay_seleccion
+pillai_heckman %>%
+  filter(termino == "lambda") %>%
+  transmute(termino, Pillai = signif(Pillai, 3), F_aprox = round(`approx F`, 1),
+            p_valor = signif(`Pr(>F)`, 3))
+```
+
+```{r}
+#| label: fig-lambda
+#| fig-cap: "Distribución de la razón inversa de Mills entre los asalariados"
+#| fig-width: 8
+#| fig-height: 3.2
+#| eval: !expr hay_seleccion
+ggplot(e2$datos, aes(lambda)) +
+  geom_histogram(bins = 60, fill = "#2F5496") +
+  labs(x = "λ (razón inversa de Mills)", y = "Asalariados")
+```
+
+## 7.5 Verificación con errores estándar corregidos
+
+En la etapa 2, λ es una variable **estimada**, por lo que los errores estándar de MCO no son exactos. Como verificación, se estima el modelo de Heckman con `sampleSelection::heckit()`, que corrige los errores estándar, para cada variable objetivo en una submuestra de `r fmt(n_heckit)` personas.
+
+```{r}
+#| label: heckit
+#| eval: !expr hay_seleccion
+error_heckit <- NULL
+verif <- tryCatch(heckit_verificacion(seleccion, base_modelo),
+                  error = function(e) { error_heckit <<- conditionMessage(e); NULL })
+if (!is.null(verif)) {
+  guardar_tabla(verif, "heckman_heckit")
+  verif %>%
+    mutate(objetivo = etiqueta_obj[objetivo],
+           z = round(estimacion / error_est, 1),
+           across(c(estimacion, error_est), ~ round(.x, 4)))
+} else {
+  cat("No se pudo ejecutar heckit. Mensaje:", if (is.null(error_heckit)) "paquete sampleSelection no instalado" else error_heckit, "\n")
+}
+```
+
+- **`invMillsRatio`**: coeficiente de λ con su error estándar corregido.
+- **`rho`**: correlación entre los factores no observados que llevan a ser asalariado y los que determinan el ingreso o las horas. Un valor positivo indica **selección positiva**: quienes llegan a ser asalariados tienen, por características no medidas, un ingreso mayor del que tendría una persona promedio con sus mismas características.
+
+## 7.6 Interpretación
+
+```{r}
+#| label: textos
+#| include: false
+if (hay_seleccion) {
+  cf <- function(mod, obj, t) comparacion$estimacion[comparacion$modelo == mod &
+                                                        comparacion$objetivo == obj &
+                                                        comparacion$termino == t]
+  pct <- function(b) 100 * (exp(b) - 1)
+  y1 <- objetivos[1]; y2 <- objetivos[2]
+  educ_mco <- pct(cf("MCO sin corrección", y1, "anios_educ")); educ_hk <- pct(cf("Heckman bietápico", y1, "anios_educ"))
+  muj_mco  <- pct(cf("MCO sin corrección", y1, "mujer"));      muj_hk  <- pct(cf("Heckman bietápico", y1, "mujer"))
+  th1 <- cf("Heckman bietápico", y1, "lambda"); th2 <- cf("Heckman bietápico", y2, "lambda")
+  p_l <- pillai_heckman$`Pr(>F)`[pillai_heckman$termino == "lambda"]
+  ame <- e1$efectos_exclusion$efecto_marginal
+}
+```
+
+```{r}
+#| label: texto-interpretacion
+#| results: asis
+#| echo: false
+#| eval: !expr hay_seleccion
+cat(sprintf(
+"- **Selección:** la razón inversa de Mills %s (p = %s). Su coeficiente es %+.3f en el ingreso y %+.2f en las horas: %s.\n",
+  if (p_l < 0.05) "es significativa en conjunto" else "no es significativa en conjunto",
+  signif(p_l, 2), th1, th2,
+  if (th1 > 0) "quienes llegan a ser asalariados tienen un ingreso no observado mayor que el promedio (selección positiva)"
+  else "quienes llegan a ser asalariados tienen un ingreso no observado menor que el promedio (selección negativa)"))
+cat(sprintf(
+"- **Identificación:** el R² de λ explicada por las predictoras es %.2f (%s).\n", e2$r2_lambda,
+  if (e2$r2_lambda > 0.9) "colinealidad alta: los coeficientes corregidos deben tomarse con mucha cautela"
+  else if (e2$r2_lambda > 0.7) "colinealidad moderada" else "las restricciones de exclusión aportan variación propia"))
+cat(sprintf(
+"- **Educación:** el retorno de un año de estudio pasa de %.1f %% (sin corrección) a %.1f %% (Heckman).\n", educ_mco, educ_hk))
+cat(sprintf(
+"- **Brecha de género:** la diferencia de ingreso de las mujeres pasa de %.1f %% a %.1f %% al corregir la selección.\n", muj_mco, muj_hk))
+cat(sprintf(
+"- **Cuidado de niños:** cada niño menor de 6 años cambia la probabilidad de ser asalariado en %+.1f puntos para los hombres y en %+.1f puntos para las mujeres; ser jefe de hogar la cambia en %+.1f puntos.\n",
+  100 * ame[1], 100 * ame[2], 100 * ame[5]))
+```

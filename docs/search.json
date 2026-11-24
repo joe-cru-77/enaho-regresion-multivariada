@@ -1,46 +1,156 @@
 [
   {
-    "objectID": "08-despliegue.html",
-    "href": "08-despliegue.html",
-    "title": "8. Despliegue en un sistema de gestión de datos",
+    "objectID": "10-despliegue.html",
+    "href": "10-despliegue.html",
+    "title": "10. Despliegue en un sistema de gestión de datos",
     "section": "",
     "text": "Para que otros sistemas (un dashboard en línea, una API o un análisis en SQL) puedan usar los resultados, el pipeline los publica en un sistema de gestión de bases de datos: PostgreSQL.",
     "crumbs": [
       "MLOps y datos abiertos",
-      "8. Despliegue"
+      "10. Despliegue"
     ]
   },
   {
-    "objectID": "08-despliegue.html#credenciales-fuera-del-código",
-    "href": "08-despliegue.html#credenciales-fuera-del-código",
-    "title": "8. Despliegue en un sistema de gestión de datos",
-    "section": "8.1 Credenciales fuera del código",
-    "text": "8.1 Credenciales fuera del código\nLa contraseña nunca se escribe en el código, porque el código se sube a GitHub. Se guarda en el archivo .Renviron de la carpeta del proyecto, que está en .gitignore:\nPGHOST=localhost\nPGPORT=5432\nPGUSER=postgres\nPGPASSWORD=tu_contraseña\nPGDATABASE=enaho\nSi no existe PGPASSWORD, esta etapa se omite y el resto del pipeline funciona igual.\n\n\nCódigo\ndesplegar &lt;- nzchar(Sys.getenv(\"PGPASSWORD\"))\nif (desplegar) {\n  con &lt;- dbConnect(RPostgres::Postgres(),\n                   host     = Sys.getenv(\"PGHOST\", \"localhost\"),\n                   port     = as.integer(Sys.getenv(\"PGPORT\", \"5432\")),\n                   user     = Sys.getenv(\"PGUSER\", \"postgres\"),\n                   password = Sys.getenv(\"PGPASSWORD\"),\n                   dbname   = Sys.getenv(\"PGDATABASE\", \"enaho\"),\n                   bigint   = \"numeric\")\n  cat(\"Conectado a PostgreSQL:\", Sys.getenv(\"PGDATABASE\", \"enaho\"), \"\\n\")\n} else {\n  cat(\"No hay credenciales de PostgreSQL (PGPASSWORD): se omite el despliegue.\\n\")\n}\n\n\nNo hay credenciales de PostgreSQL (PGPASSWORD): se omite el despliegue.",
+    "objectID": "10-despliegue.html#credenciales-fuera-del-código",
+    "href": "10-despliegue.html#credenciales-fuera-del-código",
+    "title": "10. Despliegue en un sistema de gestión de datos",
+    "section": "10.1 Credenciales fuera del código",
+    "text": "10.1 Credenciales fuera del código\nLa contraseña nunca se escribe en el código, porque el código se sube a GitHub. Se guarda en el archivo .Renviron de la carpeta del proyecto, que está en .gitignore:\nPGHOST=localhost\nPGPORT=5432\nPGUSER=postgres\nPGPASSWORD=tu_contraseña\nPGDATABASE=enaho\nSi no existe PGPASSWORD, esta etapa se omite y el resto del pipeline funciona igual.\n\n\nCódigo\ndesplegar &lt;- nzchar(Sys.getenv(\"PGPASSWORD\"))\nif (desplegar) {\n  con &lt;- dbConnect(RPostgres::Postgres(),\n                   host     = Sys.getenv(\"PGHOST\", \"localhost\"),\n                   port     = as.integer(Sys.getenv(\"PGPORT\", \"5432\")),\n                   user     = Sys.getenv(\"PGUSER\", \"postgres\"),\n                   password = Sys.getenv(\"PGPASSWORD\"),\n                   dbname   = Sys.getenv(\"PGDATABASE\", \"enaho\"),\n                   bigint   = \"numeric\")\n  cat(\"Conectado a PostgreSQL:\", Sys.getenv(\"PGDATABASE\", \"enaho\"), \"\\n\")\n} else {\n  cat(\"No hay credenciales de PostgreSQL (PGPASSWORD): se omite el despliegue.\\n\")\n}\n\n\nNo hay credenciales de PostgreSQL (PGPASSWORD): se omite el despliegue.",
     "crumbs": [
       "MLOps y datos abiertos",
-      "8. Despliegue"
+      "10. Despliegue"
     ]
   },
   {
-    "objectID": "08-despliegue.html#tablas-que-se-publican",
-    "href": "08-despliegue.html#tablas-que-se-publican",
-    "title": "8. Despliegue en un sistema de gestión de datos",
-    "section": "8.2 Tablas que se publican",
-    "text": "8.2 Tablas que se publican\n\n\n\n\n\n\n\nTabla\nContenido\n\n\n\n\nmodelo_base\nBase del modelo: 2 variables objetivo y 19 predictoras\n\n\nmodelo_metricas_prueba\nRMSE, R² y MAE de cada modelo en el conjunto de prueba\n\n\nmodelo_metricas_vc\nMétricas de la validación cruzada\n\n\nmodelo_importancia\nImportancia de variables del Random Forest\n\n\nmodelo_coeficientes\nCoeficientes de la regresión multivariada\n\n\n\n\n\nCódigo\nif (desplegar) {\n  leer &lt;- function(n) read_csv(file.path(rutas$tablas, paste0(n, \".csv\")), show_col_types = FALSE)\n  tablas &lt;- list(\n    modelo_base             = read_csv(archivo_base_modelo, show_col_types = FALSE),\n    modelo_metricas_prueba  = leer(\"metricas_prueba\"),\n    modelo_metricas_vc      = leer(\"metricas_validacion_cruzada\"),\n    modelo_importancia      = leer(\"importancia_random_forest\"),\n    modelo_coeficientes     = leer(\"coeficientes_multivariado\"))\n\n  iwalk(tablas, function(df, nombre) {\n    dbWriteTable(con, nombre, as.data.frame(df), overwrite = TRUE)\n  })\n  dbExecute(con, \"ALTER TABLE modelo_base ADD PRIMARY KEY (anio, conglome, vivienda, hogar, codperso)\")\n\n  verificacion &lt;- map_dfr(names(tablas), function(n) {\n    tibble(tabla = n,\n           filas_en_R = nrow(tablas[[n]]),\n           filas_en_PostgreSQL = dbGetQuery(con, paste(\"SELECT COUNT(*) AS n FROM\", n))$n)\n  })\n  dbDisconnect(con)\n  guardar_tabla(verificacion, \"verificacion_despliegue\")\n  verificacion\n}",
+    "objectID": "10-despliegue.html#tablas-que-se-publican",
+    "href": "10-despliegue.html#tablas-que-se-publican",
+    "title": "10. Despliegue en un sistema de gestión de datos",
+    "section": "10.2 Tablas que se publican",
+    "text": "10.2 Tablas que se publican\n\n\n\n\n\n\n\nTabla\nContenido\n\n\n\n\nmodelo_base\nBase del modelo: 2 variables objetivo y 19 predictoras\n\n\nmodelo_metricas_prueba\nRMSE, R² y MAE de cada modelo en el conjunto de prueba\n\n\nmodelo_metricas_vc\nMétricas de la validación cruzada\n\n\nmodelo_importancia\nImportancia de variables del Random Forest\n\n\nmodelo_coeficientes\nCoeficientes de la regresión multivariada\n\n\n\n\n\nCódigo\nif (desplegar) {\n  leer &lt;- function(n) read_csv(file.path(rutas$tablas, paste0(n, \".csv\")), show_col_types = FALSE)\n  tablas &lt;- list(\n    modelo_base             = read_csv(archivo_base_modelo, show_col_types = FALSE),\n    modelo_metricas_prueba  = leer(\"metricas_prueba\"),\n    modelo_metricas_vc      = leer(\"metricas_validacion_cruzada\"),\n    modelo_importancia      = leer(\"importancia_random_forest\"),\n    modelo_coeficientes     = leer(\"coeficientes_multivariado\"))\n\n  iwalk(tablas, function(df, nombre) {\n    dbWriteTable(con, nombre, as.data.frame(df), overwrite = TRUE)\n  })\n  dbExecute(con, \"ALTER TABLE modelo_base ADD PRIMARY KEY (anio, conglome, vivienda, hogar, codperso)\")\n\n  verificacion &lt;- map_dfr(names(tablas), function(n) {\n    tibble(tabla = n,\n           filas_en_R = nrow(tablas[[n]]),\n           filas_en_PostgreSQL = dbGetQuery(con, paste(\"SELECT COUNT(*) AS n FROM\", n))$n)\n  })\n  dbDisconnect(con)\n  guardar_tabla(verificacion, \"verificacion_despliegue\")\n  verificacion\n}",
     "crumbs": [
       "MLOps y datos abiertos",
-      "8. Despliegue"
+      "10. Despliegue"
     ]
   },
   {
-    "objectID": "08-despliegue.html#siguiente-paso-despliegue-en-la-nube",
-    "href": "08-despliegue.html#siguiente-paso-despliegue-en-la-nube",
-    "title": "8. Despliegue en un sistema de gestión de datos",
-    "section": "8.3 Siguiente paso: despliegue en la nube",
-    "text": "8.3 Siguiente paso: despliegue en la nube\nLa misma etapa sirve para un servidor PostgreSQL en la nube (por ejemplo, el de la universidad o un servicio gestionado): solo cambian los valores de PGHOST, PGUSER y PGPASSWORD en .Renviron. El código no se modifica.",
+    "objectID": "10-despliegue.html#siguiente-paso-despliegue-en-la-nube",
+    "href": "10-despliegue.html#siguiente-paso-despliegue-en-la-nube",
+    "title": "10. Despliegue en un sistema de gestión de datos",
+    "section": "10.3 Siguiente paso: despliegue en la nube",
+    "text": "10.3 Siguiente paso: despliegue en la nube\nLa misma etapa sirve para un servidor PostgreSQL en la nube (por ejemplo, el de la universidad o un servicio gestionado): solo cambian los valores de PGHOST, PGUSER y PGPASSWORD en .Renviron. El código no se modifica.",
     "crumbs": [
       "MLOps y datos abiertos",
-      "8. Despliegue"
+      "10. Despliegue"
+    ]
+  },
+  {
+    "objectID": "08-regiones.html",
+    "href": "08-regiones.html",
+    "title": "8. Heterogeneidad del mercado laboral",
+    "section": "",
+    "text": "El mercado laboral peruano no es homogéneo: las condiciones de trabajo, los horarios y los rubros predominantes cambian entre la costa, la sierra y la selva, entre departamentos y entre el empleo formal y el informal. Un único modelo para todo el país supone que la educación, el sexo o el sector público afectan el ingreso y las horas igual en todas partes. Esta etapa pone a prueba ese supuesto con cinco segmentaciones:",
+    "crumbs": [
+      "Análisis econométrico",
+      "8. Heterogeneidad"
+    ]
+  },
+  {
+    "objectID": "08-regiones.html#región-natural",
+    "href": "08-regiones.html#región-natural",
+    "title": "8. Heterogeneidad del mercado laboral",
+    "section": "8.1 Región natural",
+    "text": "8.1 Región natural\nLos promedios se calculan con el factor de expansión (fac500a) y el diseño muestral de la ENAHO: conglomerados (conglome dentro de cada año) y estratos aproximados por año, departamento y área. Así describen a todos los asalariados del Perú, no solo a la muestra.\n\n\nCódigo\ndescriptivos &lt;- medias_region(diseno) %&gt;%\n  left_join(diseno$variables %&gt;% group_by(region) %&gt;%\n              summarise(across(c(ingreso_mensual, horas, ingreso_hora), mean)) %&gt;%\n              pivot_longer(-region, names_to = \"variable\", values_to = \"media_muestra\"),\n            by = c(\"region\", \"variable\")) %&gt;%\n  mutate(ic_inf = media - 1.96 * error_est, ic_sup = media + 1.96 * error_est)\nguardar_tabla(descriptivos, \"regiones_descriptivos_ponderados\")\n\nnombres_var &lt;- c(ingreso_mensual = \"Ingreso mensual (S/)\", horas = \"Horas por semana\",\n                 ingreso_hora = \"Ingreso por hora (S/)\")\ndescriptivos %&gt;%\n  mutate(Región = nombre_region(region), variable = nombres_var[variable]) %&gt;%\n  arrange(variable, Región) %&gt;%\n  transmute(Variable = variable, Región, `Media ponderada` = round(media, 1),\n            `Error estándar` = round(error_est, 2), `Media de la muestra` = round(media_muestra, 1))\n\n\n\n\n\n\n\n\n\n\n\n\n\nVariable\nRegión\nMedia ponderada\nError estándar\nMedia de la muestra\n\n\n\n\nHoras por semana\nLima Metropolitana\n45.6\n0.08\n45.2\n\n\nHoras por semana\nCosta (sin Lima)\n43.6\n0.08\n43.0\n\n\nHoras por semana\nSierra\n41.2\n0.09\n40.4\n\n\nHoras por semana\nSelva\n41.8\n0.12\n41.3\n\n\nIngreso mensual (S/)\nLima Metropolitana\n1762.5\n11.52\n1880.8\n\n\nIngreso mensual (S/)\nCosta (sin Lima)\n1307.1\n4.84\n1397.1\n\n\nIngreso mensual (S/)\nSierra\n1277.9\n6.56\n1313.2\n\n\nIngreso mensual (S/)\nSelva\n1226.9\n7.25\n1268.2\n\n\nIngreso por hora (S/)\nLima Metropolitana\n10.1\n0.10\n10.9\n\n\nIngreso por hora (S/)\nCosta (sin Lima)\n7.7\n0.04\n8.3\n\n\nIngreso por hora (S/)\nSierra\n7.9\n0.05\n8.2\n\n\nIngreso por hora (S/)\nSelva\n7.7\n0.08\n8.1\n\n\n\n\n\n\n\n\nCódigo\ndescriptivos %&gt;%\n  mutate(region = nombre_region(region), variable = factor(nombres_var[variable], levels = nombres_var)) %&gt;%\n  ggplot(aes(region, media, fill = region)) +\n  geom_col(width = 0.7, show.legend = FALSE) +\n  geom_errorbar(aes(ymin = ic_inf, ymax = ic_sup), width = 0.2) +\n  facet_wrap(~ variable, scales = \"free_y\") +\n  scale_fill_manual(values = col_region) +\n  labs(x = NULL, y = NULL) +\n  theme(axis.text.x = element_text(angle = 20, hjust = 1))\n\n\n\n\n\n\n\n\nFigura 1: Ingreso mensual, horas e ingreso por hora por región (medias ponderadas e intervalo de confianza del 95 %)\n\n\n\n\n\n\n\nCódigo\njornada &lt;- svyby(~jornada, ~region, diseno, svymean, na.rm = TRUE) %&gt;%\n  as_tibble() %&gt;%\n  select(region, starts_with(\"jornada\")) %&gt;%\n  pivot_longer(-region, names_to = \"jornada\", values_to = \"proporcion\") %&gt;%\n  mutate(jornada = factor(str_remove(jornada, \"^jornada\"),\n                          levels = c(\"Menos de 35 h\", \"35 a 48 h\", \"Más de 48 h\")))\nguardar_tabla(jornada, \"regiones_jornada\")\n\njornada %&gt;%\n  mutate(region = nombre_region(region)) %&gt;%\n  ggplot(aes(100 * proporcion, region, fill = jornada)) +\n  geom_col(width = 0.7) +\n  geom_text(aes(label = sprintf(\"%.0f %%\", 100 * proporcion)),\n            position = position_stack(vjust = 0.5), color = \"white\", size = 3.5) +\n  scale_fill_manual(values = c(`Menos de 35 h` = \"#8FAADC\", `35 a 48 h` = azul, `Más de 48 h` = naranja)) +\n  labs(x = \"% de asalariados\", y = NULL, fill = \"Jornada semanal\") +\n  theme(legend.position = \"bottom\")\n\n\n\n\n\n\n\n\nFigura 2: Distribución de la jornada semanal por región (porcentajes ponderados)\n\n\n\n\n\n¿Los efectos cambian por región? Se agrega al modelo de Heckman nacional la interacción de la región con las cuatro predictoras principales. Las interacciones entran al final, así que la prueba de Pillai de cada una indica si ese efecto sobre el ingreso y las horas difiere entre regiones una vez controladas las demás variables.\n\n\nCódigo\nd_int &lt;- base %&gt;% inner_join(lambda, by = llaves_persona)\ninteracciones &lt;- paste0(\"region:\", names(terminos_clave))\nmodelo_int &lt;- lm(formula_resultado(d_int, excluir_resultado_heckman, c(\"lambda\", interacciones)), data = d_int)\npillai_int &lt;- pillai_mv(modelo_int) %&gt;% filter(str_detect(termino, \":\"))\nguardar_tabla(pillai_int, \"regiones_interacciones_pillai\")\n\npillai_int %&gt;%\n  transmute(Interacción = paste(\"Región ×\", terminos_clave[str_remove(termino, \"region:|:region\")]),\n            Pillai = signif(Pillai, 3), `F aprox.` = round(`approx F`, 1),\n            gl = Df, `p-valor` = signif(`Pr(&gt;F)`, 3))\n\n\n\n\n\n\nInteracción\nPillai\nF aprox.\ngl\np-valor\n\n\n\n\nRegión × Años de educación\n0.00789\n380.4\n3\n0\n\n\nRegión × Mujer\n0.00158\n75.7\n3\n0\n\n\nRegión × Sector público\n0.00294\n141.5\n3\n0\n\n\nRegión × Afiliado a pensiones\n0.00413\n198.7\n3\n0\n\n\n\n\n\n\n\n\nCódigo\npor_region &lt;- heckman_por_segmento(base, \"region\", seleccion = seleccion, excluir = \"region\")\nguardar_tabla(por_region, \"regiones_coeficientes\")\n\n\n\n\nCódigo\ngrafico_efectos &lt;- function(coefs, etiqueta, colores = NULL, terminos = names(terminos_clave)) {\n  coefs %&gt;%\n    filter(termino %in% terminos) %&gt;%\n    a_efectos() %&gt;%\n    mutate(variable = terminos_clave[termino], objetivo = etiqueta_obj[objetivo],\n           nivel = etiqueta(segmento)) %&gt;%\n    ggplot(aes(estimacion, nivel, color = nivel)) +\n    geom_vline(data = nacional %&gt;% filter(termino %in% terminos) %&gt;%\n                 mutate(variable = terminos_clave[termino], objetivo = etiqueta_obj[objetivo]),\n               aes(xintercept = estimacion), linetype = \"dashed\", color = \"grey40\") +\n    geom_pointrange(aes(xmin = ic_inf, xmax = ic_sup), show.legend = FALSE) +\n    facet_grid(objetivo ~ variable, scales = \"free_x\") +\n    { if (!is.null(colores)) scale_color_manual(values = colores) } +\n    labs(x = \"Efecto estimado\", y = NULL)\n}\ngrafico_efectos(por_region, function(x) as.character(nombre_region(x)), col_region)\n\n\n\n\n\n\n\n\nFigura 3: Efectos por región (modelo de Heckman estimado en cada región, intervalo del 95 %). La línea punteada es el efecto nacional.",
+    "crumbs": [
+      "Análisis econométrico",
+      "8. Heterogeneidad"
+    ]
+  },
+  {
+    "objectID": "08-regiones.html#departamentos-puno-frente-al-resto-del-país",
+    "href": "08-regiones.html#departamentos-puno-frente-al-resto-del-país",
+    "title": "8. Heterogeneidad del mercado laboral",
+    "section": "8.2 Departamentos: Puno frente al resto del país",
+    "text": "8.2 Departamentos: Puno frente al resto del país\n\n\nCódigo\nperfil &lt;- perfil_departamentos(diseno)\nguardar_tabla(perfil, \"departamentos_perfil_ponderado\")\n\n\n\n\nCódigo\norden_dep &lt;- perfil$nombre_dep[order(perfil$ingreso_mensual)]   # ordenados por ingreso\nperfil %&gt;%\n  transmute(nombre_dep, `Ingreso mensual (S/)` = ingreso_mensual, `Horas por semana` = horas,\n            `% informal` = 100 * informal, `% en el agro` = 100 * agro) %&gt;%\n  pivot_longer(-nombre_dep) %&gt;%\n  group_by(name) %&gt;% mutate(promedio = mean(value)) %&gt;% ungroup() %&gt;%\n  mutate(es_puno = nombre_dep == \"Puno\",\n         nombre_dep = factor(nombre_dep, levels = orden_dep),\n         name = factor(name, levels = c(\"Ingreso mensual (S/)\", \"Horas por semana\", \"% informal\", \"% en el agro\"))) %&gt;%\n  ggplot(aes(value, nombre_dep, color = es_puno)) +\n  geom_vline(aes(xintercept = promedio), linetype = \"dashed\", color = \"grey50\") +\n  geom_point(size = 2.3, show.legend = FALSE) +\n  facet_wrap(~ name, scales = \"free_x\", nrow = 1) +\n  scale_color_manual(values = c(`TRUE` = naranja, `FALSE` = azul)) +\n  labs(x = NULL, y = NULL) +\n  theme(axis.text.y = element_text(size = 8))\n\n\n\n\n\n\n\n\nFigura 4: Perfil laboral ponderado de los asalariados por departamento (Puno en naranja; la línea punteada es el promedio de los departamentos)\n\n\n\n\n\n\n\nCódigo\npor_dep &lt;- heckman_por_segmento(base, \"departamento\", seleccion = seleccion)\nguardar_tabla(por_dep, \"departamentos_coeficientes\")\n\n\n\n\nCódigo\npor_dep %&gt;%\n  filter(objetivo == objetivos[1], termino %in% c(\"anios_educ\", \"mujer\")) %&gt;%\n  a_efectos() %&gt;%\n  mutate(variable = terminos_clave[termino], nombre_dep = nombres_departamento[segmento],\n         es_puno = nombre_dep == \"Puno\") %&gt;%\n  ggplot(aes(estimacion, reorder(paste(nombre_dep, variable, sep = \"___\"), estimacion), color = es_puno)) +\n  geom_vline(data = nacional %&gt;% filter(objetivo == objetivos[1], termino %in% c(\"anios_educ\", \"mujer\")) %&gt;%\n               mutate(variable = terminos_clave[termino]),\n             aes(xintercept = estimacion), linetype = \"dashed\", color = \"grey40\") +\n  geom_pointrange(aes(xmin = ic_inf, xmax = ic_sup), show.legend = FALSE, size = 0.3) +\n  facet_wrap(~ variable, scales = \"free\") +\n  scale_y_discrete(labels = function(x) str_remove(x, \"___.*$\")) +\n  scale_color_manual(values = c(`TRUE` = naranja, `FALSE` = azul)) +\n  labs(x = \"% de cambio del ingreso\", y = NULL) +\n  theme(axis.text.y = element_text(size = 8))\n\n\n\n\n\n\n\n\nFigura 5: Retorno de un año de educación y brecha de ingreso de las mujeres por departamento (Heckman por departamento, intervalo del 95 %). Puno en naranja; la línea punteada es el efecto nacional.\n\n\n\n\n\nPuno en contexto. Comparación ponderada de Puno con Lima y el promedio nacional:\n\n\nCódigo\nnac_desc &lt;- svymean(~ingreso_mensual + horas + informal + agro, diseno, na.rm = TRUE)\nfila &lt;- function(nombre, desc, coefs) {\n  ef &lt;- function(t, o) coefs$estimacion[coefs$termino == t & coefs$objetivo == o]\n  tibble(Ámbito = nombre,\n         `Ingreso mensual (S/)` = round(desc$ingreso_mensual), `Horas por semana` = round(desc$horas, 1),\n         `% informal` = round(100 * desc$informal, 1), `% en el agro` = round(100 * desc$agro, 1),\n         `Retorno educación (%)` = round(ef(\"anios_educ\", objetivos[1]), 1),\n         `Brecha mujeres (%)` = round(ef(\"mujer\", objetivos[1]), 1),\n         `Horas mujeres` = round(ef(\"mujer\", objetivos[2]), 2))\n}\ndep_coef &lt;- function(cod) por_dep %&gt;% filter(segmento == cod) %&gt;% a_efectos()\npuno_tabla &lt;- bind_rows(\n  fila(\"Puno\", filter(perfil, departamento == \"21\"), dep_coef(\"21\")),\n  fila(\"Lima\", filter(perfil, departamento == \"15\"), dep_coef(\"15\")),\n  fila(\"Perú\", as.list(coef(nac_desc)), nacional))\nguardar_tabla(puno_tabla, \"puno_comparacion\")\npuno_tabla\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nÁmbito\nIngreso mensual (S/)\nHoras por semana\n% informal\n% en el agro\nRetorno educación (%)\nBrecha mujeres (%)\nHoras mujeres\n\n\n\n\nPuno\n1088\n40.4\n75.6\n10.8\n0.2\n-6.5\n2.15\n\n\nLima\n1742\n45.2\n48.1\n3.2\n3.0\n-15.9\n-1.99\n\n\nPerú\n1476\n43.7\n55.9\n12.2\n1.9\n-18.0\n-1.57",
+    "crumbs": [
+      "Análisis econométrico",
+      "8. Heterogeneidad"
+    ]
+  },
+  {
+    "objectID": "08-regiones.html#empleo-formal-e-informal",
+    "href": "08-regiones.html#empleo-formal-e-informal",
+    "title": "8. Heterogeneidad del mercado laboral",
+    "section": "8.3 Empleo formal e informal",
+    "text": "8.3 Empleo formal e informal\nLa informalidad cambia por completo las condiciones de trabajo: sin contrato ni seguridad social, el ingreso depende menos de la educación y las jornadas son más irregulares. La variable oficial de informalidad del INEI (ocupinf) no está disponible en los 12 años de la base unida, por lo que se usa una aproximación al criterio del INEI para asalariados: es informal quien no tiene contrato o no aporta a un sistema de pensiones (las FF.AA. y la PNP se consideran formales). Dentro del grupo formal, la afiliación a pensiones no varía y sale automáticamente del modelo.\n\n\nCódigo\nform_desc &lt;- svyby(~ingreso_mensual + horas, ~formalidad + region, diseno, svymean, na.rm = TRUE) %&gt;%\n  as_tibble() %&gt;% select(formalidad, region, ingreso_mensual, horas)\nguardar_tabla(form_desc, \"formalidad_descriptivos\")\n\npor_formalidad &lt;- heckman_por_segmento(filter(base, !is.na(formalidad)), \"formalidad\",\n                                       lambda_nacional = lambda)\nguardar_tabla(por_formalidad, \"formalidad_coeficientes\")\n\nform_desc %&gt;%\n  mutate(region = nombre_region(region)) %&gt;%\n  pivot_longer(c(ingreso_mensual, horas)) %&gt;%\n  mutate(name = c(ingreso_mensual = \"Ingreso mensual (S/)\", horas = \"Horas por semana\")[name]) %&gt;%\n  ggplot(aes(region, value, fill = formalidad)) +\n  geom_col(position = position_dodge(width = 0.75), width = 0.7) +\n  facet_wrap(~ name, scales = \"free_y\") +\n  scale_fill_manual(values = c(Formal = azul, Informal = naranja)) +\n  labs(x = NULL, y = NULL, fill = NULL, title = \"Ingreso y horas por formalidad y región (ponderado)\") +\n  theme(legend.position = \"bottom\", axis.text.x = element_text(angle = 15, hjust = 1))\n\n\n\n\n\n\n\n\n\n\n\nCódigo\ngrafico_efectos(por_formalidad, identity, c(Formal = azul, Informal = naranja))\n\n\n\n\n\n\n\n\nFigura 6: Efectos en el empleo formal e informal (Heckman con λ nacional, intervalo del 95 %)",
+    "crumbs": [
+      "Análisis econométrico",
+      "8. Heterogeneidad"
+    ]
+  },
+  {
+    "objectID": "08-regiones.html#rubro-económico",
+    "href": "08-regiones.html#rubro-económico",
+    "title": "8. Heterogeneidad del mercado laboral",
+    "section": "8.4 Rubro económico",
+    "text": "8.4 Rubro económico\n\n\nCódigo\npor_rubro &lt;- heckman_por_segmento(base, \"rubro\", lambda_nacional = lambda)\nguardar_tabla(por_rubro, \"rubro_coeficientes\")\nrubro_desc &lt;- svyby(~ingreso_mensual + horas, ~rubro, diseno, svymean, na.rm = TRUE) %&gt;%\n  as_tibble() %&gt;% select(rubro, ingreso_mensual, horas)\nguardar_tabla(rubro_desc, \"rubro_descriptivos\")\nrubro_desc %&gt;% mutate(across(where(is.numeric), ~ round(.x, 1))) %&gt;% arrange(desc(ingreso_mensual))\n\n\n\n\n\n\nrubro\ningreso_mensual\nhoras\n\n\n\n\nMinería\n2477.1\n56.0\n\n\nAdm. pública, educación y salud\n2136.9\n39.9\n\n\nIndustria y construcción\n1503.6\n45.7\n\n\nOtros servicios\n1309.9\n45.1\n\n\nComercio\n1209.2\n46.7\n\n\nAgropecuario\n832.3\n37.4\n\n\n\n\n\n\n\n\nCódigo\ngrafico_efectos(por_rubro, identity, terminos = c(\"anios_educ\", \"mujer\", \"afiliado_pensiones\"))\n\n\n\n\n\n\n\n\nFigura 7: Efectos por rubro económico (Heckman con λ nacional, intervalo del 95 %). No se muestra el sector público: dentro de varios rubros hay muy pocos trabajadores públicos y su intervalo es demasiado amplio.",
+    "crumbs": [
+      "Análisis econométrico",
+      "8. Heterogeneidad"
+    ]
+  },
+  {
+    "objectID": "08-regiones.html#grupos-de-departamentos-similares-clustering",
+    "href": "08-regiones.html#grupos-de-departamentos-similares-clustering",
+    "title": "8. Heterogeneidad del mercado laboral",
+    "section": "8.5 Grupos de departamentos similares (clustering)",
+    "text": "8.5 Grupos de departamentos similares (clustering)\nEn lugar de agrupar los departamentos por su ubicación, se agrupan por cómo funciona su mercado laboral. Con el perfil ponderado de cada departamento (logaritmo del ingreso, horas, % informal, % en el agro, años de educación, % urbano y % en el sector público), estandarizado, se aplica k-means. El número de grupos se elige con el coeficiente de silueta.\n\n\nCódigo\ngrupos &lt;- agrupar_departamentos(perfil)\nguardar_tabla(grupos$asignacion, \"departamentos_grupos\")\nguardar_tabla(grupos$siluetas, \"departamentos_siluetas\")\nbase &lt;- base %&gt;% left_join(select(grupos$asignacion, departamento, grupo), by = \"departamento\")\n\ngrupos$asignacion %&gt;%\n  group_by(grupo) %&gt;%\n  summarise(Departamentos = paste(sort(nombre_dep), collapse = \", \"),\n            `Ingreso (S/)` = round(mean(ingreso_mensual)), Horas = round(mean(horas), 1),\n            `% informal` = round(100 * mean(informal), 1), `% agro` = round(100 * mean(agro), 1),\n            `Años de educ.` = round(mean(anios_educ), 1))\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\ngrupo\nDepartamentos\nIngreso (S/)\nHoras\n% informal\n% agro\nAños de educ.\n\n\n\n\nGrupo 1\nArequipa, Callao, Cusco, Ica, La Libertad, Lambayeque, Lima, Loreto, Madre de Dios, Moquegua, Pasco, Tacna, Tumbes, Ucayali\n1452\n44.4\n55.2\n12.7\n11.4\n\n\nGrupo 2\nAmazonas, Áncash, Apurímac, Ayacucho, Cajamarca, Huancavelica, Huánuco, Junín, Piura, Puno, San Martín\n1170\n39.9\n69.6\n23.5\n10.6\n\n\n\n\n\n\n\n\nCódigo\nggplot(grupos$asignacion, aes(pc1, pc2, color = grupo)) +\n  geom_hline(yintercept = 0, color = \"grey85\") + geom_vline(xintercept = 0, color = \"grey85\") +\n  geom_point(size = 3) +\n  geom_text(aes(label = nombre_dep), vjust = -0.9, size = 3, show.legend = FALSE) +\n  labs(x = sprintf(\"Componente 1 (%.0f %% de la varianza)\", 100 * grupos$varianza_pca[1]),\n       y = sprintf(\"Componente 2 (%.0f %% de la varianza)\", 100 * grupos$varianza_pca[2]),\n       color = NULL, subtitle = sprintf(\"k = %d grupos (silueta media = %.2f)\", grupos$k,\n                                        max(grupos$siluetas$silueta_media))) +\n  theme(legend.position = \"bottom\")\n\n\n\n\n\n\n\n\nFigura 8: Departamentos en los dos primeros componentes principales de su perfil laboral, coloreados por grupo\n\n\n\n\n\n\n\nCódigo\npor_grupo &lt;- heckman_por_segmento(filter(base, !is.na(grupo)), \"grupo\", lambda_nacional = lambda)\nguardar_tabla(por_grupo, \"grupos_coeficientes\")\n\n\n\n\nCódigo\ngrafico_efectos(por_grupo, identity)\n\n\n\n\n\n\n\n\nFigura 9: Efectos por grupo de departamentos (Heckman con λ nacional, intervalo del 95 %)",
+    "crumbs": [
+      "Análisis econométrico",
+      "8. Heterogeneidad"
+    ]
+  },
+  {
+    "objectID": "08-regiones.html#síntesis-cuánto-cambian-los-efectos-según-el-segmento",
+    "href": "08-regiones.html#síntesis-cuánto-cambian-los-efectos-según-el-segmento",
+    "title": "8. Heterogeneidad del mercado laboral",
+    "section": "8.6 Síntesis: ¿cuánto cambian los efectos según el segmento?",
+    "text": "8.6 Síntesis: ¿cuánto cambian los efectos según el segmento?\n\n\nCódigo\ntipos &lt;- c(region = \"Región\", formalidad = \"Formalidad\", rubro = \"Rubro\", grupo = \"Grupo de departamentos\")\nsintesis &lt;- bind_rows(por_region %&gt;% mutate(segmento = etiqueta_region[segmento]),\n                      por_formalidad, por_rubro, por_grupo) %&gt;%\n  filter(objetivo == objetivos[1], termino %in% c(\"anios_educ\", \"mujer\")) %&gt;%\n  a_efectos() %&gt;%\n  mutate(variable = terminos_clave[termino], tipo = factor(tipos[tipo_segmento], levels = tipos))\nguardar_tabla(sintesis, \"segmentos_sintesis\")\n\nggplot(sintesis, aes(estimacion, reorder(segmento, estimacion))) +\n  geom_vline(data = nacional %&gt;% filter(objetivo == objetivos[1], termino %in% c(\"anios_educ\", \"mujer\")) %&gt;%\n               mutate(variable = terminos_clave[termino]),\n             aes(xintercept = estimacion), linetype = \"dashed\", color = \"grey40\") +\n  geom_pointrange(aes(xmin = ic_inf, xmax = ic_sup), color = azul, size = 0.35) +\n  facet_grid(tipo ~ variable, scales = \"free\", space = \"free_y\") +\n  labs(x = \"% de cambio del ingreso\", y = NULL) +\n  theme(strip.text.y = element_text(angle = 0))\n\n\n\n\n\n\n\n\nFigura 10: Retorno de la educación y brecha de ingreso de las mujeres en cada segmento. La línea punteada es el efecto nacional.",
+    "crumbs": [
+      "Análisis econométrico",
+      "8. Heterogeneidad"
+    ]
+  },
+  {
+    "objectID": "08-regiones.html#resultados-ponderados-frente-a-no-ponderados",
+    "href": "08-regiones.html#resultados-ponderados-frente-a-no-ponderados",
+    "title": "8. Heterogeneidad del mercado laboral",
+    "section": "8.7 Resultados ponderados frente a no ponderados",
+    "text": "8.7 Resultados ponderados frente a no ponderados\n\n\nCódigo\npond &lt;- bind_rows(\n  coeficientes_mv(etapa2_multivariada(base, lambda)$heckman, \"Sin ponderar\"),\n  coeficientes_mv(etapa2_multivariada(base, lambda, pesos = \"fac500a\")$heckman, \"Ponderado (fac500a)\")) %&gt;%\n  filter(termino %in% terminos_segmento)\nguardar_tabla(pond, \"ponderado_vs_no\")\n\npond %&gt;%\n  a_efectos() %&gt;%\n  mutate(efecto = if_else(objetivo == objetivos[1] & termino != \"lambda\",\n                          sprintf(\"%+.1f %%\", estimacion), sprintf(\"%+.3f\", estimacion)),\n         variable = c(terminos_clave, lambda = \"λ\")[termino], objetivo = etiqueta_obj[objetivo]) %&gt;%\n  select(objetivo, variable, modelo, efecto) %&gt;%\n  pivot_wider(names_from = modelo, values_from = efecto)\n\n\n\n\n\n\n\n\n\n\n\n\nobjetivo\nvariable\nSin ponderar\nPonderado (fac500a)\n\n\n\n\nY1: ingreso (% de cambio)\nMujer\n-18.0 %\n-17.4 %\n\n\nY1: ingreso (% de cambio)\nAños de educación\n+1.9 %\n+2.2 %\n\n\nY1: ingreso (% de cambio)\nSector público\n+11.1 %\n+10.9 %\n\n\nY1: ingreso (% de cambio)\nAfiliado a pensiones\n+19.5 %\n+17.3 %\n\n\nY1: ingreso (% de cambio)\nλ\n-0.166\n-0.110\n\n\nY2: horas por semana\nMujer\n-1.571\n-1.537\n\n\nY2: horas por semana\nAños de educación\n-0.372\n-0.368\n\n\nY2: horas por semana\nSector público\n-3.514\n-3.306\n\n\nY2: horas por semana\nAfiliado a pensiones\n+1.227\n+0.775\n\n\nY2: horas por semana\nλ\n-6.865\n-6.057",
+    "crumbs": [
+      "Análisis econométrico",
+      "8. Heterogeneidad"
+    ]
+  },
+  {
+    "objectID": "08-regiones.html#modelos-predictivos-por-segmento",
+    "href": "08-regiones.html#modelos-predictivos-por-segmento",
+    "title": "8. Heterogeneidad del mercado laboral",
+    "section": "8.8 Modelos predictivos por segmento",
+    "text": "8.8 Modelos predictivos por segmento\n¿Se predice mejor con un modelo para todo el Perú o con un modelo propio para cada segmento? Se compara el Random Forest global con uno por región y uno por grupo de departamentos, en el mismo conjunto de prueba.\n\n\nCódigo\np &lt;- particionar(base)\nml_segmentos &lt;- bind_rows(\n  rf_por_segmento(p, \"region\", predictoras, \"region\"),\n  rf_por_segmento(p, \"grupo\", predictoras, character()))\nguardar_tabla(ml_segmentos, \"segmentos_ml\")\n\n\n\n\nCódigo\nml_segmentos %&gt;%\n  filter(metrica == \"rsq\") %&gt;%\n  mutate(segmento = if_else(tipo_segmento == \"region\", etiqueta_region[segmento], segmento),\n         objetivo = c(y1_ln_ingreso_mensual = \"Y1: ln ingreso\", y2_horas_semanales = \"Y2: horas\")[objetivo]) %&gt;%\n  ggplot(aes(segmento, valor, fill = enfoque)) +\n  geom_col(position = position_dodge(width = 0.75), width = 0.7) +\n  geom_text(aes(label = sprintf(\"%.2f\", valor)), position = position_dodge(width = 0.75),\n            vjust = -0.4, size = 2.8) +\n  facet_grid(objetivo ~ tipo_segmento, scales = \"free\", space = \"free_x\",\n             labeller = labeller(tipo_segmento = c(region = \"Región\", grupo = \"Grupo de departamentos\"))) +\n  scale_fill_manual(values = c(`Un modelo para el Perú` = azul, `Un modelo por segmento` = naranja)) +\n  scale_y_continuous(expand = expansion(mult = c(0, 0.18))) +\n  labs(x = NULL, y = \"R² en prueba\", fill = NULL) +\n  theme(legend.position = \"bottom\", axis.text.x = element_text(angle = 20, hjust = 1))\n\n\n\n\n\n\n\n\nFigura 11: R² del Random Forest en el conjunto de prueba de cada segmento: un modelo para todo el Perú frente a un modelo por segmento",
+    "crumbs": [
+      "Análisis econométrico",
+      "8. Heterogeneidad"
+    ]
+  },
+  {
+    "objectID": "08-regiones.html#interpretación",
+    "href": "08-regiones.html#interpretación",
+    "title": "8. Heterogeneidad del mercado laboral",
+    "section": "8.9 Interpretación",
+    "text": "8.9 Interpretación\n\nRegión: las cuatro predictoras principales tienen efectos que difieren entre regiones (interacciones significativas: años de educación, mujer, sector público, afiliado a pensiones). El retorno de un año de educación va de 1.5 % (Costa (sin Lima)) a 4.7 % (Lima Metropolitana), y la brecha de ingreso de las mujeres de -27.2 % (Selva) a -15.5 % (Costa (sin Lima)).\nDepartamentos: el retorno de la educación va de -0.4 % (Pasco) a 5.1 % (Loreto). En Puno es 0.2 % (IC 95 %: -1.2 a 1.6), frente a 1.9 % a nivel nacional.\nFormalidad: el retorno de la educación es de 0.8 % (Informal) a 5.9 % (Formal), y la brecha de las mujeres de -24.5 % (Informal) a -19.5 % (Formal).\nRubro: el retorno de la educación va de -0.3 % (Agropecuario) a 5.9 % (Adm. pública, educación y salud).\nGrupos de departamentos: el k-means separa 2 grupos con perfiles laborales distintos; el retorno de la educación va de 0.6 % (Grupo 2) a 2.7 % (Grupo 1).\nPredicción: un modelo por segmento cambia el R² entre -0.002 y +0.007; son diferencias mínimas: para predecir basta un modelo nacional que incluya la región, aunque los efectos de las predictoras sí difieren entre segmentos (secciones 8.1 a 8.6).",
+    "crumbs": [
+      "Análisis econométrico",
+      "8. Heterogeneidad"
     ]
   },
   {
@@ -202,7 +312,7 @@
     "href": "index.html",
     "title": "Regresión multivariada con dos variables objetivo: ENAHO 2014–2025",
     "section": "",
-    "text": "Componente\nDónde\n\n\n\n\nModelado\nRegresión multivariada (MCO), lineal, Elastic Net y Random Forest: 4. Modelado\n\n\nValidación\nValidación cruzada y conjunto de prueba con RMSE, R² y MAE: 5. Validación\n\n\nInterpretabilidad\nCoeficientes, prueba de Pillai e importancia de variables: 6. Interpretabilidad\n\n\nReproducibilidad\nQuarto, rutas relativas, semilla fija, renv, freeze, datos con DOI: LISTA_REPRODUCIBILIDAD.md\n\n\nMLOps\nRegistro y versiones de modelos, API, monitoreo y GitHub Actions: 7. MLOps",
+    "text": "Componente\nDónde\n\n\n\n\nModelado\nRegresión multivariada (MCO), lineal, Elastic Net y Random Forest: 4. Modelado\n\n\nValidación\nValidación cruzada y conjunto de prueba con RMSE, R² y MAE: 5. Validación\n\n\nInterpretabilidad\nCoeficientes, prueba de Pillai e importancia de variables: 6. Interpretabilidad\n\n\nReproducibilidad\nQuarto, rutas relativas, semilla fija, renv, freeze, datos con DOI: LISTA_REPRODUCIBILIDAD.md\n\n\nCorrección del sesgo de selección\nModelo bietápico de Heckman (probit + regresión multivariada con la razón inversa de Mills): 7. Heckman\n\n\nHeterogeneidad del mercado laboral\nRegión natural, departamento (foco en Puno), empleo formal/informal, rubro y grupos de departamentos (k-means), con factores de expansión: 8. Heterogeneidad\n\n\nMLOps\nRegistro y versiones de modelos, API, monitoreo y GitHub Actions: 9. MLOps",
     "crumbs": [
       "Inicio y arquitectura"
     ]
@@ -212,7 +322,7 @@
     "href": "index.html#componentes-del-pipeline",
     "title": "Regresión multivariada con dos variables objetivo: ENAHO 2014–2025",
     "section": "",
-    "text": "Componente\nDónde\n\n\n\n\nModelado\nRegresión multivariada (MCO), lineal, Elastic Net y Random Forest: 4. Modelado\n\n\nValidación\nValidación cruzada y conjunto de prueba con RMSE, R² y MAE: 5. Validación\n\n\nInterpretabilidad\nCoeficientes, prueba de Pillai e importancia de variables: 6. Interpretabilidad\n\n\nReproducibilidad\nQuarto, rutas relativas, semilla fija, renv, freeze, datos con DOI: LISTA_REPRODUCIBILIDAD.md\n\n\nMLOps\nRegistro y versiones de modelos, API, monitoreo y GitHub Actions: 7. MLOps",
+    "text": "Componente\nDónde\n\n\n\n\nModelado\nRegresión multivariada (MCO), lineal, Elastic Net y Random Forest: 4. Modelado\n\n\nValidación\nValidación cruzada y conjunto de prueba con RMSE, R² y MAE: 5. Validación\n\n\nInterpretabilidad\nCoeficientes, prueba de Pillai e importancia de variables: 6. Interpretabilidad\n\n\nReproducibilidad\nQuarto, rutas relativas, semilla fija, renv, freeze, datos con DOI: LISTA_REPRODUCIBILIDAD.md\n\n\nCorrección del sesgo de selección\nModelo bietápico de Heckman (probit + regresión multivariada con la razón inversa de Mills): 7. Heckman\n\n\nHeterogeneidad del mercado laboral\nRegión natural, departamento (foco en Puno), empleo formal/informal, rubro y grupos de departamentos (k-means), con factores de expansión: 8. Heterogeneidad\n\n\nMLOps\nRegistro y versiones de modelos, API, monitoreo y GitHub Actions: 9. MLOps",
     "crumbs": [
       "Inicio y arquitectura"
     ]
@@ -232,7 +342,7 @@
     "href": "index.html#arquitectura-del-pipeline",
     "title": "Regresión multivariada con dos variables objetivo: ENAHO 2014–2025",
     "section": "Arquitectura del pipeline",
-    "text": "Arquitectura del pipeline\nEste proyecto Quarto es la arquitectura local del pipeline: cada etapa es una página que lee lo que dejó la anterior y guarda sus resultados en disco. Así el trabajo se puede reproducir de punta a punta con un solo comando (quarto render).\n\n\nCódigo\nflowchart LR\n  A[(\"CSV del INEI&lt;br/&gt;módulos 200, 300, 500&lt;br/&gt;2014–2025\")] --&gt; B[\"1. Integración&lt;br/&gt;inventario y unión\"]\n  B --&gt; C[(\"datos/interim&lt;br/&gt;base unida por año\")]\n  C --&gt; D[\"2. Limpieza&lt;br/&gt;faltantes y recodificación\"]\n  D --&gt; E[(\"datos/processed&lt;br/&gt;base_modelo.csv.gz\")]\n  E --&gt; F[\"3. Exploración\"]\n  E --&gt; G[\"4. Modelado&lt;br/&gt;tidymodels\"]\n  G --&gt; H[\"5. Validación&lt;br/&gt;métricas\"]\n  G --&gt; I[\"6. Interpretabilidad\"]\n  H --&gt; J[\"Dashboard\"]\n  I --&gt; J\n  H --&gt; N[\"7. MLOps&lt;br/&gt;registro, API, monitoreo\"]\n  N --&gt; K[\"8. Despliegue&lt;br/&gt;PostgreSQL\"]\n  E --&gt; L[\"9. Datos abiertos&lt;br/&gt;Zenodo (DOI)\"]\n  N --&gt; M[\"Código&lt;br/&gt;GitHub + Actions\"]\n\n\n\n\n\n\nflowchart LR\n  A[(\"CSV del INEI&lt;br/&gt;módulos 200, 300, 500&lt;br/&gt;2014–2025\")] --&gt; B[\"1. Integración&lt;br/&gt;inventario y unión\"]\n  B --&gt; C[(\"datos/interim&lt;br/&gt;base unida por año\")]\n  C --&gt; D[\"2. Limpieza&lt;br/&gt;faltantes y recodificación\"]\n  D --&gt; E[(\"datos/processed&lt;br/&gt;base_modelo.csv.gz\")]\n  E --&gt; F[\"3. Exploración\"]\n  E --&gt; G[\"4. Modelado&lt;br/&gt;tidymodels\"]\n  G --&gt; H[\"5. Validación&lt;br/&gt;métricas\"]\n  G --&gt; I[\"6. Interpretabilidad\"]\n  H --&gt; J[\"Dashboard\"]\n  I --&gt; J\n  H --&gt; N[\"7. MLOps&lt;br/&gt;registro, API, monitoreo\"]\n  N --&gt; K[\"8. Despliegue&lt;br/&gt;PostgreSQL\"]\n  E --&gt; L[\"9. Datos abiertos&lt;br/&gt;Zenodo (DOI)\"]\n  N --&gt; M[\"Código&lt;br/&gt;GitHub + Actions\"]\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nEtapa\nPágina\nEntrada\nSalida\n\n\n\n\n1. Integración\n01-integracion.qmd\ndatos/raw/ (CSV del INEI)\ndatos/interim/enaho_unida_AAAA.rds\n\n\n2. Limpieza\n02-limpieza.qmd\ndatos/interim/\ndatos/processed/base_modelo.csv.gz\n\n\n3. Exploración\n03-exploracion.qmd\nbase_modelo\ngráficos descriptivos\n\n\n4. Modelado\n04-modelado.qmd\nbase_modelo\noutputs/ (métricas, predicciones, coeficientes)\n\n\n5. Validación\n05-validacion.qmd\noutputs/\ncomparación de modelos\n\n\n6. Interpretabilidad\n06-interpretabilidad.qmd\noutputs/\nefectos e importancia de variables\n\n\n7. MLOps\n07-mlops.qmd\nbase_modelo, mejor modelo\nregistro de modelos con versiones, API, monitoreo por año\n\n\n8. Despliegue\n08-despliegue.qmd\nbase_modelo, outputs/\ntablas en PostgreSQL\n\n\n9. Disponibilidad de datos\n09-disponibilidad-datos.qmd\n—\nGitHub (código) y Zenodo (datos, DOI)\n\n\nDashboard\ndashboard.qmd\noutputs/\ntablero de resultados",
+    "text": "Arquitectura del pipeline\nEste proyecto Quarto es la arquitectura local del pipeline: cada etapa es una página que lee lo que dejó la anterior y guarda sus resultados en disco. Así el trabajo se puede reproducir de punta a punta con un solo comando (quarto render).\n\n\nCódigo\nflowchart LR\n  A[(\"CSV del INEI&lt;br/&gt;módulos 200, 300, 500&lt;br/&gt;2014–2025\")] --&gt; B[\"1. Integración&lt;br/&gt;inventario y unión\"]\n  B --&gt; C[(\"datos/interim&lt;br/&gt;base unida por año\")]\n  C --&gt; D[\"2. Limpieza&lt;br/&gt;faltantes y recodificación\"]\n  D --&gt; E[(\"datos/processed&lt;br/&gt;base_modelo.csv.gz\")]\n  E --&gt; F[\"3. Exploración\"]\n  E --&gt; G[\"4. Modelado&lt;br/&gt;tidymodels\"]\n  G --&gt; H[\"5. Validación&lt;br/&gt;métricas\"]\n  G --&gt; I[\"6. Interpretabilidad\"]\n  C --&gt; P[\"7. Heckman bietápico&lt;br/&gt;probit de selección + λ\"]\n  E --&gt; P\n  P --&gt; Q[\"8. Heterogeneidad&lt;br/&gt;región, departamento,&lt;br/&gt;formalidad, rubro, clusters\"]\n  H --&gt; J[\"Dashboard\"]\n  I --&gt; J\n  Q --&gt; J\n  H --&gt; N[\"9. MLOps&lt;br/&gt;registro, API, monitoreo\"]\n  N --&gt; K[\"10. Despliegue&lt;br/&gt;PostgreSQL\"]\n  E --&gt; L[\"11. Datos abiertos&lt;br/&gt;Zenodo (DOI)\"]\n  N --&gt; M[\"Código&lt;br/&gt;GitHub + Actions\"]\n\n\n\n\n\n\nflowchart LR\n  A[(\"CSV del INEI&lt;br/&gt;módulos 200, 300, 500&lt;br/&gt;2014–2025\")] --&gt; B[\"1. Integración&lt;br/&gt;inventario y unión\"]\n  B --&gt; C[(\"datos/interim&lt;br/&gt;base unida por año\")]\n  C --&gt; D[\"2. Limpieza&lt;br/&gt;faltantes y recodificación\"]\n  D --&gt; E[(\"datos/processed&lt;br/&gt;base_modelo.csv.gz\")]\n  E --&gt; F[\"3. Exploración\"]\n  E --&gt; G[\"4. Modelado&lt;br/&gt;tidymodels\"]\n  G --&gt; H[\"5. Validación&lt;br/&gt;métricas\"]\n  G --&gt; I[\"6. Interpretabilidad\"]\n  C --&gt; P[\"7. Heckman bietápico&lt;br/&gt;probit de selección + λ\"]\n  E --&gt; P\n  P --&gt; Q[\"8. Heterogeneidad&lt;br/&gt;región, departamento,&lt;br/&gt;formalidad, rubro, clusters\"]\n  H --&gt; J[\"Dashboard\"]\n  I --&gt; J\n  Q --&gt; J\n  H --&gt; N[\"9. MLOps&lt;br/&gt;registro, API, monitoreo\"]\n  N --&gt; K[\"10. Despliegue&lt;br/&gt;PostgreSQL\"]\n  E --&gt; L[\"11. Datos abiertos&lt;br/&gt;Zenodo (DOI)\"]\n  N --&gt; M[\"Código&lt;br/&gt;GitHub + Actions\"]\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nEtapa\nPágina\nEntrada\nSalida\n\n\n\n\n1. Integración\n01-integracion.qmd\ndatos/raw/ (CSV del INEI)\ndatos/interim/enaho_unida_AAAA.rds\n\n\n2. Limpieza\n02-limpieza.qmd\ndatos/interim/\ndatos/processed/base_modelo.csv.gz\n\n\n3. Exploración\n03-exploracion.qmd\nbase_modelo\ngráficos descriptivos\n\n\n4. Modelado\n04-modelado.qmd\nbase_modelo\noutputs/ (métricas, predicciones, coeficientes)\n\n\n5. Validación\n05-validacion.qmd\noutputs/\ncomparación de modelos\n\n\n6. Interpretabilidad\n06-interpretabilidad.qmd\noutputs/\nefectos e importancia de variables\n\n\n7. Heckman bietápico\n07-heckman.qmd\ndatos/interim/, base_modelo\nbase_seleccion.csv.gz, λ, coeficientes corregidos\n\n\n8. Heterogeneidad\n08-regiones.qmd\nbase_modelo, λ, datos/interim/\nbase_contexto.csv.gz, resultados ponderados, efectos y modelos por segmento\n\n\n9. MLOps\n09-mlops.qmd\nbase_modelo, mejor modelo\nregistro de modelos con versiones, API, monitoreo por año\n\n\n10. Despliegue\n10-despliegue.qmd\nbase_modelo, outputs/\ntablas en PostgreSQL\n\n\n11. Disponibilidad de datos\n11-disponibilidad-datos.qmd\n—\nGitHub (código) y Zenodo (datos, DOI)\n\n\nDashboard\ndashboard.qmd\noutputs/\ntablero de resultados",
     "crumbs": [
       "Inicio y arquitectura"
     ]
@@ -242,7 +352,7 @@
     "href": "index.html#estructura-de-carpetas",
     "title": "Regresión multivariada con dos variables objetivo: ENAHO 2014–2025",
     "section": "Estructura de carpetas",
-    "text": "Estructura de carpetas\nenaho-regresion-multivariada/\n├── _quarto.yml               configuración del proyecto Quarto\n├── index.qmd ... 09-*.qmd    etapas del pipeline\n├── dashboard.qmd             tablero de resultados\n├── R/                        funciones reutilizables\n│   ├── 00_config.R           rutas, semilla y parámetros\n│   ├── 01_funciones_integracion.R\n│   ├── 02_funciones_limpieza.R\n│   ├── 03_funciones_modelado.R\n│   └── instalar_paquetes.R\n├── datos/\n│   ├── raw/                  CSV originales del INEI   (no se suben a GitHub)\n│   ├── interim/              base unida por año        (no se sube a GitHub)\n│   └── processed/            base_modelo               (se publica en Zenodo)\n├── outputs/                  tablas, figuras y registro de modelos\n├── api/                      APIs de predicción (plumber) generadas por vetiver\n├── .github/workflows/        publicación automática (GitHub Actions)\n├── imagenes/                 logo\n├── docs/                     sitio web generado        (GitHub Pages)\n├── README.md\n├── LISTA_REPRODUCIBILIDAD.md\n└── CITATION.cff",
+    "text": "Estructura de carpetas\nenaho-regresion-multivariada/\n├── _quarto.yml               configuración del proyecto Quarto\n├── index.qmd ... 11-*.qmd    etapas del pipeline\n├── dashboard.qmd             tablero de resultados\n├── R/                        funciones reutilizables\n│   ├── 00_config.R           rutas, semilla y parámetros\n│   ├── 01_funciones_integracion.R\n│   ├── 02_funciones_limpieza.R\n│   ├── 03_funciones_modelado.R\n│   ├── 04_funciones_econometria.R\n│   ├── 05_funciones_segmentacion.R\n│   └── instalar_paquetes.R\n├── datos/\n│   ├── raw/                  CSV originales del INEI   (no se suben a GitHub)\n│   ├── interim/              base unida por año        (no se sube a GitHub)\n│   └── processed/            base_modelo               (se publica en Zenodo)\n├── outputs/                  tablas, figuras y registro de modelos\n├── api/                      APIs de predicción (plumber) generadas por vetiver\n├── .github/workflows/        publicación automática (GitHub Actions)\n├── imagenes/                 logo\n├── docs/                     sitio web generado        (GitHub Pages)\n├── README.md\n├── LISTA_REPRODUCIBILIDAD.md\n└── CITATION.cff",
     "crumbs": [
       "Inicio y arquitectura"
     ]
@@ -295,7 +405,7 @@
     "href": "03-exploracion.html",
     "title": "3. Exploración de los datos",
     "section": "",
-    "text": "Código\nbase_modelo %&gt;%\n  select(`Y1: ln ingreso mensual` = y1_ln_ingreso_mensual,\n         `Y2: horas semanales` = y2_horas_semanales) %&gt;%\n  pivot_longer(everything()) %&gt;%\n  ggplot(aes(value)) +\n  geom_histogram(bins = 60, fill = \"#2F5496\") +\n  facet_wrap(~ name, scales = \"free\") +\n  labs(x = NULL, y = \"Personas\")\n\n\n\n\n\n\n\n\nFigura 1: Distribución de las dos variables objetivo\n\n\n\n\n\n\n\nCódigo\nbase_modelo %&gt;%\n  summarise(across(all_of(objetivos),\n                   list(media = mean, mediana = median, de = sd, min = min, max = max))) %&gt;%\n  pivot_longer(everything(), names_to = c(\"variable\", \".value\"),\n               names_pattern = \"(y[12]_.*)_(media|mediana|de|min|max)\") %&gt;%\n  mutate(across(where(is.numeric), ~ round(.x, 2)))\n\n\n\n\n\n\nvariable\nmedia\nde\nmin\nmax\n\n\n\n\ny1_ln_ingreso_mensual\n6.92\n0.91\n1.61\n10.46\n\n\ny1_ln_ingreso_mensual\n7.00\nNA\nNA\nNA\n\n\ny2_horas_semanales\n42.36\n16.72\n1.00\n98.00\n\n\ny2_horas_semanales\n45.00\nNA\nNA\nNA\n\n\n\n\n\n\n¿Por qué una regresión multivariada? Las dos variables objetivo están relacionadas: la correlación entre el logaritmo del ingreso y las horas trabajadas es 0.403. Modelarlas juntas permite analizar los efectos de las predictoras sobre ambas al mismo tiempo.",
+    "text": "Código\nbase_modelo %&gt;%\n  select(`Y1: ln ingreso mensual` = y1_ln_ingreso_mensual,\n         `Y2: horas semanales` = y2_horas_semanales) %&gt;%\n  pivot_longer(everything()) %&gt;%\n  ggplot(aes(value)) +\n  geom_histogram(bins = 60, fill = \"#2F5496\") +\n  facet_wrap(~ name, scales = \"free\") +\n  labs(x = NULL, y = \"Personas\")\n\n\n\n\n\n\n\n\nFigura 1: Distribución de las dos variables objetivo\n\n\n\n\n\n\n\nCódigo\nbase_modelo %&gt;%\n  summarise(across(all_of(objetivos),\n                   list(media = mean, mediana = median, de = sd, min = min, max = max))) %&gt;%\n  pivot_longer(everything(), names_to = c(\"variable\", \".value\"),\n               names_pattern = \"^(y[12]_.*)_(mediana|media|de|min|max)$\") %&gt;%\n  mutate(across(where(is.numeric), ~ round(.x, 2)))\n\n\n\n\n\n\nvariable\nmedia\nmediana\nde\nmin\nmax\n\n\n\n\ny1_ln_ingreso_mensual\n6.92\n7\n0.91\n1.61\n10.46\n\n\ny2_horas_semanales\n42.36\n45\n16.72\n1.00\n98.00\n\n\n\n\n\n\n¿Por qué una regresión multivariada? Las dos variables objetivo están relacionadas: la correlación entre el logaritmo del ingreso y las horas trabajadas es 0.403. Modelarlas juntas permite analizar los efectos de las predictoras sobre ambas al mismo tiempo.",
     "crumbs": [
       "Pipeline de datos",
       "3. Exploración"
@@ -306,7 +416,7 @@
     "href": "03-exploracion.html#variables-objetivo",
     "title": "3. Exploración de los datos",
     "section": "",
-    "text": "Código\nbase_modelo %&gt;%\n  select(`Y1: ln ingreso mensual` = y1_ln_ingreso_mensual,\n         `Y2: horas semanales` = y2_horas_semanales) %&gt;%\n  pivot_longer(everything()) %&gt;%\n  ggplot(aes(value)) +\n  geom_histogram(bins = 60, fill = \"#2F5496\") +\n  facet_wrap(~ name, scales = \"free\") +\n  labs(x = NULL, y = \"Personas\")\n\n\n\n\n\n\n\n\nFigura 1: Distribución de las dos variables objetivo\n\n\n\n\n\n\n\nCódigo\nbase_modelo %&gt;%\n  summarise(across(all_of(objetivos),\n                   list(media = mean, mediana = median, de = sd, min = min, max = max))) %&gt;%\n  pivot_longer(everything(), names_to = c(\"variable\", \".value\"),\n               names_pattern = \"(y[12]_.*)_(media|mediana|de|min|max)\") %&gt;%\n  mutate(across(where(is.numeric), ~ round(.x, 2)))\n\n\n\n\n\n\nvariable\nmedia\nde\nmin\nmax\n\n\n\n\ny1_ln_ingreso_mensual\n6.92\n0.91\n1.61\n10.46\n\n\ny1_ln_ingreso_mensual\n7.00\nNA\nNA\nNA\n\n\ny2_horas_semanales\n42.36\n16.72\n1.00\n98.00\n\n\ny2_horas_semanales\n45.00\nNA\nNA\nNA\n\n\n\n\n\n\n¿Por qué una regresión multivariada? Las dos variables objetivo están relacionadas: la correlación entre el logaritmo del ingreso y las horas trabajadas es 0.403. Modelarlas juntas permite analizar los efectos de las predictoras sobre ambas al mismo tiempo.",
+    "text": "Código\nbase_modelo %&gt;%\n  select(`Y1: ln ingreso mensual` = y1_ln_ingreso_mensual,\n         `Y2: horas semanales` = y2_horas_semanales) %&gt;%\n  pivot_longer(everything()) %&gt;%\n  ggplot(aes(value)) +\n  geom_histogram(bins = 60, fill = \"#2F5496\") +\n  facet_wrap(~ name, scales = \"free\") +\n  labs(x = NULL, y = \"Personas\")\n\n\n\n\n\n\n\n\nFigura 1: Distribución de las dos variables objetivo\n\n\n\n\n\n\n\nCódigo\nbase_modelo %&gt;%\n  summarise(across(all_of(objetivos),\n                   list(media = mean, mediana = median, de = sd, min = min, max = max))) %&gt;%\n  pivot_longer(everything(), names_to = c(\"variable\", \".value\"),\n               names_pattern = \"^(y[12]_.*)_(mediana|media|de|min|max)$\") %&gt;%\n  mutate(across(where(is.numeric), ~ round(.x, 2)))\n\n\n\n\n\n\nvariable\nmedia\nmediana\nde\nmin\nmax\n\n\n\n\ny1_ln_ingreso_mensual\n6.92\n7\n0.91\n1.61\n10.46\n\n\ny2_horas_semanales\n42.36\n45\n16.72\n1.00\n98.00\n\n\n\n\n\n\n¿Por qué una regresión multivariada? Las dos variables objetivo están relacionadas: la correlación entre el logaritmo del ingreso y las horas trabajadas es 0.403. Modelarlas juntas permite analizar los efectos de las predictoras sobre ambas al mismo tiempo.",
     "crumbs": [
       "Pipeline de datos",
       "3. Exploración"
@@ -379,135 +489,234 @@
     ]
   },
   {
-    "objectID": "07-mlops.html",
-    "href": "07-mlops.html",
-    "title": "7. MLOps",
+    "objectID": "07-heckman.html",
+    "href": "07-heckman.html",
+    "title": "7. Modelo bietápico de Heckman",
+    "section": "",
+    "text": "La base del modelo solo contiene a las personas que trabajan como asalariadas. De quienes no trabajan, trabajan de forma independiente o son trabajadores familiares no se observa un salario. Si las personas que llegan a ser asalariadas son distintas del resto en características que no se miden (motivación, redes, responsabilidades de cuidado), los coeficientes estimados solo con los asalariados están sesgados. Es el sesgo de selección.\nEl método bietápico de Heckman lo corrige en dos pasos:\n\nEtapa 1 (selección): un modelo probit estima, para todas las personas de 14 años a más, la probabilidad de ser asalariado: \\[P(S_i = 1) = \\Phi(\\mathbf{z}_i^{\\top}\\boldsymbol{\\gamma}).\\] Con él se calcula la razón inversa de Mills de cada asalariado, \\(\\lambda_i = \\phi(\\mathbf{z}_i^{\\top}\\hat{\\boldsymbol{\\gamma}}) / \\Phi(\\mathbf{z}_i^{\\top}\\hat{\\boldsymbol{\\gamma}})\\).\nEtapa 2 (resultados): la regresión multivariada del ingreso y las horas se estima agregando \\(\\lambda_i\\) como predictora: \\[\\begin{pmatrix} Y_{1i} \\\\ Y_{2i} \\end{pmatrix} = \\mathbf{B}^{\\top}\\mathbf{x}_i + \\begin{pmatrix} \\theta_1 \\\\ \\theta_2 \\end{pmatrix} \\lambda_i + \\boldsymbol{\\varepsilon}_i .\\] Si \\(\\theta_1\\) o \\(\\theta_2\\) son distintos de cero, había sesgo de selección y los coeficientes \\(\\mathbf{B}\\) corregidos son los que deben interpretarse.\n\nPara que el modelo esté bien identificado, la etapa 1 incluye restricciones de exclusión: variables que influyen en la decisión de trabajar como asalariado, pero no en el ingreso ni en las horas de quien ya trabaja. Siguiendo la especificación habitual de la literatura, son variables de composición del hogar y posición en él:\n\nn_menores6: número de niños menores de 6 años en el hogar (carga de cuidado), también en interacción con mujer, porque esa carga recae sobre todo en las mujeres;\nn_mayores65: número de adultos mayores de 65 años en el hogar;\ncasado_conviviente, jefe_hogar y tam_hogar: estado civil, ser jefe del hogar y tamaño del hogar.\n\nPor eso estas tres últimas variables, que en los modelos predictivos son predictoras, no entran en la ecuación de resultados del modelo de Heckman. Sin ellas, la identificación dependería solo de la forma no lineal del probit: en una primera versión con solo n_menores6 y n_mayores65, λ resultó casi colineal con la educación, el sexo y la edad, y absorbía sus efectos (por ejemplo, el retorno de la educación salía negativo). El diagnóstico de la sección 7.4 mide este problema.",
+    "crumbs": [
+      "Análisis econométrico",
+      "7. Heckman bietápico"
+    ]
+  },
+  {
+    "objectID": "07-heckman.html#por-qué-un-modelo-en-dos-etapas",
+    "href": "07-heckman.html#por-qué-un-modelo-en-dos-etapas",
+    "title": "7. Modelo bietápico de Heckman",
+    "section": "",
+    "text": "La base del modelo solo contiene a las personas que trabajan como asalariadas. De quienes no trabajan, trabajan de forma independiente o son trabajadores familiares no se observa un salario. Si las personas que llegan a ser asalariadas son distintas del resto en características que no se miden (motivación, redes, responsabilidades de cuidado), los coeficientes estimados solo con los asalariados están sesgados. Es el sesgo de selección.\nEl método bietápico de Heckman lo corrige en dos pasos:\n\nEtapa 1 (selección): un modelo probit estima, para todas las personas de 14 años a más, la probabilidad de ser asalariado: \\[P(S_i = 1) = \\Phi(\\mathbf{z}_i^{\\top}\\boldsymbol{\\gamma}).\\] Con él se calcula la razón inversa de Mills de cada asalariado, \\(\\lambda_i = \\phi(\\mathbf{z}_i^{\\top}\\hat{\\boldsymbol{\\gamma}}) / \\Phi(\\mathbf{z}_i^{\\top}\\hat{\\boldsymbol{\\gamma}})\\).\nEtapa 2 (resultados): la regresión multivariada del ingreso y las horas se estima agregando \\(\\lambda_i\\) como predictora: \\[\\begin{pmatrix} Y_{1i} \\\\ Y_{2i} \\end{pmatrix} = \\mathbf{B}^{\\top}\\mathbf{x}_i + \\begin{pmatrix} \\theta_1 \\\\ \\theta_2 \\end{pmatrix} \\lambda_i + \\boldsymbol{\\varepsilon}_i .\\] Si \\(\\theta_1\\) o \\(\\theta_2\\) son distintos de cero, había sesgo de selección y los coeficientes \\(\\mathbf{B}\\) corregidos son los que deben interpretarse.\n\nPara que el modelo esté bien identificado, la etapa 1 incluye restricciones de exclusión: variables que influyen en la decisión de trabajar como asalariado, pero no en el ingreso ni en las horas de quien ya trabaja. Siguiendo la especificación habitual de la literatura, son variables de composición del hogar y posición en él:\n\nn_menores6: número de niños menores de 6 años en el hogar (carga de cuidado), también en interacción con mujer, porque esa carga recae sobre todo en las mujeres;\nn_mayores65: número de adultos mayores de 65 años en el hogar;\ncasado_conviviente, jefe_hogar y tam_hogar: estado civil, ser jefe del hogar y tamaño del hogar.\n\nPor eso estas tres últimas variables, que en los modelos predictivos son predictoras, no entran en la ecuación de resultados del modelo de Heckman. Sin ellas, la identificación dependería solo de la forma no lineal del probit: en una primera versión con solo n_menores6 y n_mayores65, λ resultó casi colineal con la educación, el sexo y la edad, y absorbía sus efectos (por ejemplo, el retorno de la educación salía negativo). El diagnóstico de la sección 7.4 mide este problema.",
+    "crumbs": [
+      "Análisis econométrico",
+      "7. Heckman bietápico"
+    ]
+  },
+  {
+    "objectID": "07-heckman.html#base-de-selección",
+    "href": "07-heckman.html#base-de-selección",
+    "title": "7. Modelo bietápico de Heckman",
+    "section": "7.2 Base de selección",
+    "text": "7.2 Base de selección\n\n\nCódigo\nif (!file.exists(archivo_base_seleccion) && interim_listo) {\n  unida &lt;- leer_base_unida()\n  seleccion &lt;- construir_base_seleccion(unida, base_modelo)\n  write_csv(seleccion, archivo_base_seleccion)\n  rm(unida); invisible(gc())\n}\nhay_seleccion &lt;- file.exists(archivo_base_seleccion)\nif (!hay_seleccion) {\n  cat(\"No está la base de selección (datos/processed/base_seleccion.csv.gz).\",\n      \"Se necesita la base unida (etapa 1) o descargarla de Zenodo.\\n\")\n}\n\n\n\n\nCódigo\nseleccion &lt;- leer_base_seleccion()\n\nresumen_sel &lt;- seleccion %&gt;%\n  mutate(sexo = if_else(mujer == 1, \"Mujeres\", \"Hombres\"),\n         region = etiqueta_region[as.character(region)]) %&gt;%\n  group_by(region, sexo) %&gt;%\n  summarise(personas = n(), asalariados = sum(asalariado),\n            tasa = 100 * mean(asalariado), .groups = \"drop\")\nguardar_tabla(resumen_sel, \"heckman_base_seleccion\")\n\nresumen_sel %&gt;%\n  select(-asalariados) %&gt;%\n  pivot_wider(names_from = sexo, values_from = c(personas, tasa)) %&gt;%\n  transmute(Región = region,\n            `Personas (hombres)` = fmt(personas_Hombres), `% asalariados (hombres)` = round(tasa_Hombres, 1),\n            `Personas (mujeres)` = fmt(personas_Mujeres), `% asalariadas (mujeres)` = round(tasa_Mujeres, 1))\n\n\n\n\n\n\n\n\n\n\n\n\n\nRegión\nPersonas (hombres)\n% asalariados (hombres)\nPersonas (mujeres)\n% asalariadas (mujeres)\n\n\n\n\nCosta (sin Lima)\n154,100\n40.9\n168,234\n25.2\n\n\nLima Metropolitana\n64,771\n43.8\n71,921\n31.0\n\n\nSelva\n110,242\n28.7\n110,709\n18.2\n\n\nSierra\n179,120\n27.2\n198,889\n15.9\n\n\n\n\n\n\nLa base de selección tiene 1,057,986 personas de 14 años a más, de las cuales el 27.2 % son asalariados de la base del modelo. Se excluyen los asalariados que no entraron a base_modelo por tener datos faltantes, porque no se sabe a qué grupo pertenecen.",
+    "crumbs": [
+      "Análisis econométrico",
+      "7. Heckman bietápico"
+    ]
+  },
+  {
+    "objectID": "07-heckman.html#etapa-1-probabilidad-de-ser-asalariado-probit",
+    "href": "07-heckman.html#etapa-1-probabilidad-de-ser-asalariado-probit",
+    "title": "7. Modelo bietápico de Heckman",
+    "section": "7.3 Etapa 1: probabilidad de ser asalariado (probit)",
+    "text": "7.3 Etapa 1: probabilidad de ser asalariado (probit)\n\n\nCódigo\ne1 &lt;- etapa1_probit(seleccion)\nwrite_csv(e1$lambda, archivo_lambda)\nguardar_tabla(e1$coeficientes, \"heckman_probit\")\nguardar_tabla(e1$efectos_exclusion, \"heckman_efectos_exclusion\")\n\ne1$coeficientes %&gt;%\n  filter(!str_detect(term, \"anio|Intercept\")) %&gt;%\n  transmute(variable = term, coeficiente = round(estimate, 4),\n            error_est = round(std.error, 4), z = round(statistic, 1), p_valor = signif(p.value, 3))\n\n\n\n\n\n\nvariable\ncoeficiente\nerror_est\nz\np_valor\n\n\n\n\nmujer\n-0.3310\n0.0035\n-95.3\n0.00e+00\n\n\nedad\n0.0937\n0.0005\n182.6\n0.00e+00\n\n\nedad2\n-0.0012\n0.0000\n-197.1\n0.00e+00\n\n\nlengua_nativa\n-0.0468\n0.0050\n-9.4\n0.00e+00\n\n\netniablanco\n-0.0772\n0.0092\n-8.4\n0.00e+00\n\n\netniaindigena\n-0.0642\n0.0075\n-8.6\n0.00e+00\n\n\netniamestizo\n-0.0749\n0.0066\n-11.3\n0.00e+00\n\n\netniaotro_ns\n-0.0547\n0.0078\n-7.0\n0.00e+00\n\n\nurbano\n0.1961\n0.0037\n53.3\n0.00e+00\n\n\nregionlima_metropolitana\n0.0203\n0.0045\n4.5\n5.60e-06\n\n\nregionselva\n-0.1682\n0.0041\n-40.6\n0.00e+00\n\n\nregionsierra\n-0.1844\n0.0039\n-46.8\n0.00e+00\n\n\nn_menores6\n0.0764\n0.0034\n22.2\n0.00e+00\n\n\nn_mayores65\n-0.0051\n0.0028\n-1.8\n6.61e-02\n\n\ncasado_conviviente\n-0.1911\n0.0035\n-54.8\n0.00e+00\n\n\njefe_hogar\n0.0801\n0.0038\n20.8\n0.00e+00\n\n\ntam_hogar\n0.0068\n0.0009\n7.6\n0.00e+00\n\n\nmujer:n_menores6\n-0.1693\n0.0045\n-37.9\n0.00e+00\n\n\n\n\n\n\nEfecto marginal promedio de las restricciones de exclusión (cambio en la probabilidad de ser asalariado, en puntos porcentuales):\n\n\nCódigo\ne1$efectos_exclusion %&gt;%\n  mutate(`Efecto (puntos porcentuales)` = round(100 * efecto_marginal, 2)) %&gt;%\n  select(Variable = variable, `Efecto (puntos porcentuales)`)\n\n\n\n\n\n\nVariable\nEfecto (puntos porcentuales)\n\n\n\n\nn_menores6 (hombres)\n2.40\n\n\nn_menores6 (mujeres)\n-2.30\n\n\nn_mayores65\n-0.14\n\n\ncasado_conviviente\n-5.34\n\n\njefe_hogar\n2.24\n\n\ntam_hogar\n0.19\n\n\n\n\n\n\n\n\nCódigo\nseleccion %&gt;%\n  select(all_of(llaves_persona), mujer, n_menores6) %&gt;%\n  llaves_numericas() %&gt;%\n  inner_join(e1$lambda, by = llaves_persona) %&gt;%\n  mutate(n_menores6 = pmin(n_menores6, 3),\n         sexo = if_else(mujer == 1, \"Mujeres\", \"Hombres\")) %&gt;%\n  group_by(sexo, n_menores6) %&gt;%\n  summarise(prob = mean(prob_asalariado), .groups = \"drop\") %&gt;%\n  ggplot(aes(n_menores6, 100 * prob, color = sexo)) +\n  geom_line(linewidth = 1.1) + geom_point(size = 2.5) +\n  scale_x_continuous(breaks = 0:3, labels = c(\"0\", \"1\", \"2\", \"3 o más\")) +\n  scale_color_manual(values = c(Hombres = \"#2F5496\", Mujeres = \"#C55A11\")) +\n  labs(x = \"Niños menores de 6 años en el hogar\", y = \"Probabilidad de ser asalariado (%)\", color = NULL)\n\n\n\n\n\n\n\n\nFigura 1: Probabilidad estimada de ser asalariado según el número de niños menores de 6 años en el hogar, por sexo",
+    "crumbs": [
+      "Análisis econométrico",
+      "7. Heckman bietápico"
+    ]
+  },
+  {
+    "objectID": "07-heckman.html#etapa-2-regresión-multivariada-corregida",
+    "href": "07-heckman.html#etapa-2-regresión-multivariada-corregida",
+    "title": "7. Modelo bietápico de Heckman",
+    "section": "7.4 Etapa 2: regresión multivariada corregida",
+    "text": "7.4 Etapa 2: regresión multivariada corregida\n\n\nCódigo\ne2 &lt;- etapa2_multivariada(base_modelo, e1$lambda)\n\ncomparacion &lt;- bind_rows(coeficientes_mv(e2$sin_correccion, \"MCO sin corrección\"),\n                         coeficientes_mv(e2$heckman, \"Heckman bietápico\"))\nguardar_tabla(comparacion, \"heckman_coeficientes\")\n\npillai_heckman &lt;- pillai_mv(e2$heckman)\nguardar_tabla(pillai_heckman, \"heckman_pillai\")\n\ncomparacion %&gt;%\n  filter(termino %in% names(terminos_clave)) %&gt;%\n  mutate(efecto = if_else(objetivo == objetivos[1] & termino != \"lambda\",\n                          sprintf(\"%+.1f %%\", 100 * (exp(estimacion) - 1)),\n                          sprintf(\"%+.3f\", estimacion)),\n         variable = terminos_clave[termino], objetivo = etiqueta_obj[objetivo]) %&gt;%\n  select(objetivo, variable, modelo, efecto) %&gt;%\n  pivot_wider(names_from = modelo, values_from = efecto) %&gt;%\n  arrange(objetivo)\n\n\n\n\n\n\n\n\n\n\n\n\nobjetivo\nvariable\nMCO sin corrección\nHeckman bietápico\n\n\n\n\nY1: ln ingreso mensual\nMujer\n-21.6 %\n-18.0 %\n\n\nY1: ln ingreso mensual\nAños de educación\n+2.7 %\n+1.9 %\n\n\nY1: ln ingreso mensual\nSector público\n+11.1 %\n+11.1 %\n\n\nY1: ln ingreso mensual\nAfiliado a pensiones\n+19.5 %\n+19.5 %\n\n\nY1: ln ingreso mensual\nλ (razón inversa de Mills)\nNA\n-0.166\n\n\nY2: horas semanales\nMujer\n-3.426\n-1.571\n\n\nY2: horas semanales\nAños de educación\n-0.054\n-0.372\n\n\nY2: horas semanales\nSector público\n-3.490\n-3.514\n\n\nY2: horas semanales\nAfiliado a pensiones\n+1.215\n+1.227\n\n\nY2: horas semanales\nλ (razón inversa de Mills)\nNA\n-6.865\n\n\n\n\n\n\nEn Y1 los efectos se expresan como % de cambio en el ingreso, \\(100(e^{b}-1)\\); en Y2, como horas por semana. La fila de λ muestra el coeficiente \\(\\theta\\) de la razón inversa de Mills.\n\n\nCódigo\ncomparacion %&gt;%\n  filter(termino %in% setdiff(names(terminos_clave), \"lambda\")) %&gt;%\n  mutate(variable = terminos_clave[termino], objetivo = etiqueta_obj[objetivo]) %&gt;%\n  ggplot(aes(estimacion, variable, color = modelo)) +\n  geom_vline(xintercept = 0, color = \"grey60\") +\n  geom_pointrange(aes(xmin = ic_inf, xmax = ic_sup), position = position_dodge(width = 0.5)) +\n  facet_wrap(~ objetivo, scales = \"free_x\") +\n  scale_color_manual(values = c(`MCO sin corrección` = \"#8FAADC\", `Heckman bietápico` = \"#C55A11\")) +\n  labs(x = \"Coeficiente\", y = NULL, color = NULL) +\n  theme(legend.position = \"bottom\")\n\n\n\n\n\n\n\n\nFigura 2: Coeficientes con intervalo de confianza del 95 %: sin corrección frente a Heckman bietápico\n\n\n\n\n\nDiagnóstico de identificación. Si λ se puede explicar casi por completo con las predictoras de la ecuación de resultados, los coeficientes corregidos no son confiables. El R² de esa regresión es:\n\n\nCódigo\nguardar_tabla(tibble(r2_lambda = e2$r2_lambda), \"heckman_diagnostico\")\ntibble(`R² de λ explicada por las predictoras` = round(e2$r2_lambda, 3),\n       Lectura = case_when(e2$r2_lambda &gt; 0.9 ~ \"Colinealidad alta: identificación débil\",\n                           e2$r2_lambda &gt; 0.7 ~ \"Colinealidad moderada: interpretar con cautela\",\n                           TRUE ~ \"Identificación adecuada\"))\n\n\n\n\n\n\n\n\n\n\nR² de λ explicada por las predictoras\nLectura\n\n\n\n\n0.957\nColinealidad alta: identificación débil\n\n\n\n\n\n\nEn la comparación, el modelo «MCO sin corrección» usa las mismas predictoras que la ecuación de resultados de Heckman (sin estado civil, jefatura ni tamaño del hogar), por lo que sus coeficientes pueden diferir levemente de los de la etapa 4.\n¿Hay sesgo de selección? La prueba de Pillai de λ (la última variable del modelo, por lo que se evalúa después de todas las demás) indica si la razón inversa de Mills afecta a la vez al ingreso y a las horas:\n\n\nCódigo\npillai_heckman %&gt;%\n  filter(termino == \"lambda\") %&gt;%\n  transmute(termino, Pillai = signif(Pillai, 3), F_aprox = round(`approx F`, 1),\n            p_valor = signif(`Pr(&gt;F)`, 3))\n\n\n\n\n\n\ntermino\nPillai\nF_aprox\np_valor\n\n\n\n\nlambda\n0.00115\n166.3\n0\n\n\n\n\n\n\n\n\nCódigo\nggplot(e2$datos, aes(lambda)) +\n  geom_histogram(bins = 60, fill = \"#2F5496\") +\n  labs(x = \"λ (razón inversa de Mills)\", y = \"Asalariados\")\n\n\n\n\n\n\n\n\nFigura 3: Distribución de la razón inversa de Mills entre los asalariados",
+    "crumbs": [
+      "Análisis econométrico",
+      "7. Heckman bietápico"
+    ]
+  },
+  {
+    "objectID": "07-heckman.html#verificación-con-errores-estándar-corregidos",
+    "href": "07-heckman.html#verificación-con-errores-estándar-corregidos",
+    "title": "7. Modelo bietápico de Heckman",
+    "section": "7.5 Verificación con errores estándar corregidos",
+    "text": "7.5 Verificación con errores estándar corregidos\nEn la etapa 2, λ es una variable estimada, por lo que los errores estándar de MCO no son exactos. Como verificación, se estima el modelo de Heckman con sampleSelection::heckit(), que corrige los errores estándar, para cada variable objetivo en una submuestra de 300,000 personas.\n\n\nCódigo\nerror_heckit &lt;- NULL\nverif &lt;- tryCatch(heckit_verificacion(seleccion, base_modelo),\n                  error = function(e) { error_heckit &lt;&lt;- conditionMessage(e); NULL })\nif (!is.null(verif)) {\n  guardar_tabla(verif, \"heckman_heckit\")\n  verif %&gt;%\n    mutate(objetivo = etiqueta_obj[objetivo],\n           z = round(estimacion / error_est, 1),\n           across(c(estimacion, error_est), ~ round(.x, 4)))\n} else {\n  cat(\"No se pudo ejecutar heckit. Mensaje:\", if (is.null(error_heckit)) \"paquete sampleSelection no instalado\" else error_heckit, \"\\n\")\n}\n\n\n\n\n\n\nobjetivo\nparametro\nestimacion\nerror_est\nz\n\n\n\n\nY1: ln ingreso mensual\ninvMillsRatio\n-0.2342\n0.0299\n-7.8\n\n\nY1: ln ingreso mensual\nrho\n-0.3643\nNA\nNA\n\n\nY1: ln ingreso mensual\nsigma\n0.6428\nNA\nNA\n\n\nY2: horas semanales\ninvMillsRatio\n-8.2895\n0.7474\n-11.1\n\n\nY2: horas semanales\nrho\n-0.5004\nNA\nNA\n\n\nY2: horas semanales\nsigma\n16.5656\nNA\nNA\n\n\n\n\n\n\n\ninvMillsRatio: coeficiente de λ con su error estándar corregido.\nrho: correlación entre los factores no observados que llevan a ser asalariado y los que determinan el ingreso o las horas. Un valor positivo indica selección positiva: quienes llegan a ser asalariados tienen, por características no medidas, un ingreso mayor del que tendría una persona promedio con sus mismas características.",
+    "crumbs": [
+      "Análisis econométrico",
+      "7. Heckman bietápico"
+    ]
+  },
+  {
+    "objectID": "07-heckman.html#interpretación",
+    "href": "07-heckman.html#interpretación",
+    "title": "7. Modelo bietápico de Heckman",
+    "section": "7.6 Interpretación",
+    "text": "7.6 Interpretación\n\nSelección: la razón inversa de Mills es significativa en conjunto (p = 6.6e-73). Su coeficiente es -0.166 en el ingreso y -6.86 en las horas: quienes llegan a ser asalariados tienen un ingreso no observado menor que el promedio (selección negativa).\nIdentificación: el R² de λ explicada por las predictoras es 0.96 (colinealidad alta: los coeficientes corregidos deben tomarse con mucha cautela).\nEducación: el retorno de un año de estudio pasa de 2.7 % (sin corrección) a 1.9 % (Heckman).\nBrecha de género: la diferencia de ingreso de las mujeres pasa de -21.6 % a -18.0 % al corregir la selección.\nCuidado de niños: cada niño menor de 6 años cambia la probabilidad de ser asalariado en +2.4 puntos para los hombres y en -2.3 puntos para las mujeres; ser jefe de hogar la cambia en +2.2 puntos.",
+    "crumbs": [
+      "Análisis econométrico",
+      "7. Heckman bietápico"
+    ]
+  },
+  {
+    "objectID": "09-mlops.html",
+    "href": "09-mlops.html",
+    "title": "9. MLOps",
     "section": "",
     "text": "MLOps (Machine Learning Operations) es el conjunto de prácticas para llevar un modelo del análisis a la operación y mantenerlo funcionando. En este proyecto se aplican cinco:",
     "crumbs": [
       "MLOps y datos abiertos",
-      "7. MLOps"
+      "9. MLOps"
     ]
   },
   {
-    "objectID": "07-mlops.html#modelo-final-por-variable-objetivo",
-    "href": "07-mlops.html#modelo-final-por-variable-objetivo",
-    "title": "7. MLOps",
-    "section": "7.1 Modelo final por variable objetivo",
-    "text": "7.1 Modelo final por variable objetivo\nSe despliega, para cada variable objetivo, el modelo con menor RMSE en el conjunto de prueba (ver Validación).\n\n\nCódigo\nmejores &lt;- read_csv(file.path(rutas$tablas, \"mejor_modelo.csv\"), show_col_types = FALSE)\nmetricas_prueba &lt;- read_csv(file.path(rutas$tablas, \"metricas_prueba.csv\"), show_col_types = FALSE)\n\ndatos &lt;- leer_base_modelo()\np     &lt;- particionar(datos)          # misma partición que en el modelado (misma semilla)\n\najustes &lt;- map(set_names(objetivos), function(obj) {\n  modelo &lt;- mejores$mejor_modelo[mejores$objetivo == obj]\n  ajustar_workflow(obj, modelo, p$entrenamiento)\n})\nmejores\n\n\n\n\n\n\nobjetivo\nmejor_modelo\nrmse_prueba\n\n\n\n\ny1_ln_ingreso_mensual\nrandom_forest\n0.5773356\n\n\ny2_horas_semanales\nrandom_forest\n14.5287931",
+    "objectID": "09-mlops.html#modelo-final-por-variable-objetivo",
+    "href": "09-mlops.html#modelo-final-por-variable-objetivo",
+    "title": "9. MLOps",
+    "section": "9.1 Modelo final por variable objetivo",
+    "text": "9.1 Modelo final por variable objetivo\nSe despliega, para cada variable objetivo, el modelo con menor RMSE en el conjunto de prueba (ver Validación).\n\n\nCódigo\nmejores &lt;- read_csv(file.path(rutas$tablas, \"mejor_modelo.csv\"), show_col_types = FALSE)\nmetricas_prueba &lt;- read_csv(file.path(rutas$tablas, \"metricas_prueba.csv\"), show_col_types = FALSE)\n\ndatos &lt;- leer_base_modelo()\np     &lt;- particionar(datos)          # misma partición que en el modelado (misma semilla)\n\najustes &lt;- map(set_names(objetivos), function(obj) {\n  modelo &lt;- mejores$mejor_modelo[mejores$objetivo == obj]\n  ajustar_workflow(obj, modelo, p$entrenamiento)\n})\nmejores\n\n\n\n\n\n\nobjetivo\nmejor_modelo\nrmse_prueba\n\n\n\n\ny1_ln_ingreso_mensual\nrandom_forest\n0.5773356\n\n\ny2_horas_semanales\nrandom_forest\n14.5287931",
     "crumbs": [
       "MLOps y datos abiertos",
-      "7. MLOps"
+      "9. MLOps"
     ]
   },
   {
-    "objectID": "07-mlops.html#registro-y-versionado-de-modelos",
-    "href": "07-mlops.html#registro-y-versionado-de-modelos",
-    "title": "7. MLOps",
-    "section": "7.2 Registro y versionado de modelos",
-    "text": "7.2 Registro y versionado de modelos\nCada modelo se guarda en un registro (outputs/modelos/registro/) con su versión y sus metadatos: el tipo de modelo, las métricas de prueba, la semilla y la fecha. Cada vez que se vuelve a entrenar se crea una versión nueva y las anteriores se conservan, así se puede volver a cualquiera de ellas.\n\n\nCódigo\nregistro &lt;- board_folder(file.path(rutas$modelos, \"registro\"), versioned = TRUE)\n\nwalk(objetivos, function(obj) {\n  modelo &lt;- mejores$mejor_modelo[mejores$objetivo == obj]\n  v &lt;- vetiver_model(\n    ajustes[[obj]],\n    model_name = paste0(\"enaho_\", obj),\n    description = paste(\"Modelo\", modelo, \"para\", obj, \"- ENAHO 2014-2025, asalariados\"),\n    metadata = list(\n      modelo   = modelo,\n      semilla  = semilla,\n      metricas = metricas_prueba %&gt;% filter(objetivo == obj, modelo == !!modelo) %&gt;%\n        select(metrica, valor) %&gt;% deframe() %&gt;% as.list()))\n  vetiver_pin_write(registro, v)\n})\n\nversiones &lt;- map_dfr(objetivos, function(obj) {\n  pin_versions(registro, paste0(\"enaho_\", obj)) %&gt;% mutate(modelo = paste0(\"enaho_\", obj))\n})\nguardar_tabla(versiones, \"registro_versiones_modelos\")\nversiones\n\n\n\n\n\n\n\n\n\n\n\n\nversion\ncreated\nhash\nmodelo\n\n\n\n\n20261119T163939Z-57ab4\n2026-11-19 11:39:39\n57ab4\nenaho_y1_ln_ingreso_mensual\n\n\n20261119T163948Z-c003a\n2026-11-19 11:39:48\nc003a\nenaho_y2_horas_semanales",
+    "objectID": "09-mlops.html#registro-y-versionado-de-modelos",
+    "href": "09-mlops.html#registro-y-versionado-de-modelos",
+    "title": "9. MLOps",
+    "section": "9.2 Registro y versionado de modelos",
+    "text": "9.2 Registro y versionado de modelos\nCada modelo se guarda en un registro (outputs/modelos/registro/) con su versión y sus metadatos: el tipo de modelo, las métricas de prueba, la semilla y la fecha. Cada vez que se vuelve a entrenar se crea una versión nueva y las anteriores se conservan, así se puede volver a cualquiera de ellas.\n\n\nCódigo\nregistro &lt;- board_folder(file.path(rutas$modelos, \"registro\"), versioned = TRUE)\n\nwalk(objetivos, function(obj) {\n  modelo &lt;- mejores$mejor_modelo[mejores$objetivo == obj]\n  v &lt;- vetiver_model(\n    ajustes[[obj]],\n    model_name = paste0(\"enaho_\", obj),\n    description = paste(\"Modelo\", modelo, \"para\", obj, \"- ENAHO 2014-2025, asalariados\"),\n    metadata = list(\n      modelo   = modelo,\n      semilla  = semilla,\n      metricas = metricas_prueba %&gt;% filter(objetivo == obj, modelo == !!modelo) %&gt;%\n        select(metrica, valor) %&gt;% deframe() %&gt;% as.list()))\n  vetiver_pin_write(registro, v)\n})\n\nversiones &lt;- map_dfr(objetivos, function(obj) {\n  pin_versions(registro, paste0(\"enaho_\", obj)) %&gt;% mutate(modelo = paste0(\"enaho_\", obj))\n})\nguardar_tabla(versiones, \"registro_versiones_modelos\")\nversiones\n\n\n\n\n\n\n\n\n\n\n\n\nversion\ncreated\nhash\nmodelo\n\n\n\n\n20261119T163939Z-57ab4\n2026-11-19 11:39:39\n57ab4\nenaho_y1_ln_ingreso_mensual\n\n\n20261124T021622Z-9938a\n2026-11-23 21:16:22\n9938a\nenaho_y1_ln_ingreso_mensual\n\n\n20261119T163948Z-c003a\n2026-11-19 11:39:48\nc003a\nenaho_y2_horas_semanales\n\n\n20261124T021630Z-a6f44\n2026-11-23 21:16:30\na6f44\nenaho_y2_horas_semanales",
     "crumbs": [
       "MLOps y datos abiertos",
-      "7. MLOps"
+      "9. MLOps"
     ]
   },
   {
-    "objectID": "07-mlops.html#despliegue-del-modelo-como-api",
-    "href": "07-mlops.html#despliegue-del-modelo-como-api",
-    "title": "7. MLOps",
-    "section": "7.3 Despliegue del modelo como API",
-    "text": "7.3 Despliegue del modelo como API\nvetiver genera automáticamente una API REST con plumber. Otra aplicación (por ejemplo, un sistema web) puede enviarle los datos de una persona y recibir la predicción de su ingreso o de sus horas.\n\n\nCódigo\ndir.create(here(\"api\"), showWarnings = FALSE)\nwalk(objetivos, function(obj) {\n  vetiver_write_plumber(registro, paste0(\"enaho_\", obj),\n                        file = here(\"api\", paste0(\"plumber_\", obj, \".R\")))\n})\nlist.files(here(\"api\"))\n\n\n[1] \"plumber_y1_ln_ingreso_mensual.R\" \"plumber_y2_horas_semanales.R\"   \n\n\nPara levantar la API del ingreso en tu computadora:\nplumber::pr(\"api/plumber_y1_ln_ingreso_mensual.R\") |&gt; plumber::pr_run(port = 8000)\n# Documentación interactiva: http://127.0.0.1:8000/__docs__/",
+    "objectID": "09-mlops.html#despliegue-del-modelo-como-api",
+    "href": "09-mlops.html#despliegue-del-modelo-como-api",
+    "title": "9. MLOps",
+    "section": "9.3 Despliegue del modelo como API",
+    "text": "9.3 Despliegue del modelo como API\nvetiver genera automáticamente una API REST con plumber. Otra aplicación (por ejemplo, un sistema web) puede enviarle los datos de una persona y recibir la predicción de su ingreso o de sus horas.\n\n\nCódigo\ndir.create(here(\"api\"), showWarnings = FALSE)\nwalk(objetivos, function(obj) {\n  vetiver_write_plumber(registro, paste0(\"enaho_\", obj),\n                        file = here(\"api\", paste0(\"plumber_\", obj, \".R\")))\n})\nlist.files(here(\"api\"))\n\n\n[1] \"plumber_y1_ln_ingreso_mensual.R\" \"plumber_y2_horas_semanales.R\"   \n\n\nPara levantar la API del ingreso en tu computadora:\nplumber::pr(\"api/plumber_y1_ln_ingreso_mensual.R\") |&gt; plumber::pr_run(port = 8000)\n# Documentación interactiva: http://127.0.0.1:8000/__docs__/",
     "crumbs": [
       "MLOps y datos abiertos",
-      "7. MLOps"
+      "9. MLOps"
     ]
   },
   {
-    "objectID": "07-mlops.html#monitoreo-del-desempeño-por-año",
-    "href": "07-mlops.html#monitoreo-del-desempeño-por-año",
-    "title": "7. MLOps",
-    "section": "7.4 Monitoreo del desempeño por año",
-    "text": "7.4 Monitoreo del desempeño por año\nEn producción, un modelo puede perder precisión con el tiempo si cambian las condiciones del mercado laboral (data drift). Aquí se simula ese monitoreo midiendo el desempeño en el conjunto de prueba año por año.\n\n\nCódigo\nmonitoreo &lt;- map_dfr(objetivos, function(obj) {\n  p$prueba %&gt;%\n    mutate(.pred = predict(ajustes[[obj]], select(p$prueba, all_of(predictoras)))$.pred,\n           real  = .data[[obj]],\n           fecha = as.Date(paste0(anio, \"-07-01\"))) %&gt;%\n    vetiver_compute_metrics(fecha, \"year\", real, .pred, metric_set = metricas) %&gt;%\n    mutate(objetivo = obj)\n})\nguardar_tabla(monitoreo, \"monitoreo_por_anio\")\n\n\n\n\nCódigo\nmonitoreo %&gt;%\n  mutate(objetivo = recode(objetivo, y1_ln_ingreso_mensual = \"Y1: ln ingreso mensual\",\n                           y2_horas_semanales = \"Y2: horas semanales\")) %&gt;%\n  ggplot(aes(.index, .estimate)) +\n  geom_line(color = \"#2F5496\") +\n  geom_point(aes(color = lubridate::year(.index) == 2020), size = 2, show.legend = FALSE) +\n  scale_color_manual(values = c(`FALSE` = \"#2F5496\", `TRUE` = \"#C55A11\")) +\n  facet_grid(.metric ~ objetivo, scales = \"free_y\") +\n  labs(x = NULL, y = NULL)\n\n\n\n\n\n\n\n\nFigura 1: Desempeño del modelo final por año en el conjunto de prueba\n\n\n\n\n\nSi en un año el RMSE sube o el R² baja mucho respecto a los demás, el modelo debe revisarse o reentrenarse con datos nuevos. 2020 aparece en naranja porque la encuesta se aplicó en parte por teléfono durante la pandemia.",
+    "objectID": "09-mlops.html#monitoreo-del-desempeño-por-año",
+    "href": "09-mlops.html#monitoreo-del-desempeño-por-año",
+    "title": "9. MLOps",
+    "section": "9.4 Monitoreo del desempeño por año",
+    "text": "9.4 Monitoreo del desempeño por año\nEn producción, un modelo puede perder precisión con el tiempo si cambian las condiciones del mercado laboral (data drift). Aquí se simula ese monitoreo midiendo el desempeño en el conjunto de prueba año por año.\n\n\nCódigo\nmonitoreo &lt;- map_dfr(objetivos, function(obj) {\n  p$prueba %&gt;%\n    mutate(.pred = predict(ajustes[[obj]], select(p$prueba, all_of(predictoras)))$.pred,\n           real  = .data[[obj]],\n           fecha = as.Date(paste0(anio, \"-07-01\"))) %&gt;%\n    vetiver_compute_metrics(fecha, \"year\", real, .pred, metric_set = metricas) %&gt;%\n    mutate(objetivo = obj)\n})\nguardar_tabla(monitoreo, \"monitoreo_por_anio\")\n\n\n\n\nCódigo\nmonitoreo %&gt;%\n  mutate(objetivo = recode(objetivo, y1_ln_ingreso_mensual = \"Y1: ln ingreso mensual\",\n                           y2_horas_semanales = \"Y2: horas semanales\")) %&gt;%\n  ggplot(aes(.index, .estimate)) +\n  geom_line(color = \"#2F5496\") +\n  geom_point(aes(color = lubridate::year(.index) == 2020), size = 2, show.legend = FALSE) +\n  scale_color_manual(values = c(`FALSE` = \"#2F5496\", `TRUE` = \"#C55A11\")) +\n  facet_grid(.metric ~ objetivo, scales = \"free_y\") +\n  labs(x = NULL, y = NULL)\n\n\n\n\n\n\n\n\nFigura 1: Desempeño del modelo final por año en el conjunto de prueba\n\n\n\n\n\nSi en un año el RMSE sube o el R² baja mucho respecto a los demás, el modelo debe revisarse o reentrenarse con datos nuevos. 2020 aparece en naranja porque la encuesta se aplicó en parte por teléfono durante la pandemia.",
     "crumbs": [
       "MLOps y datos abiertos",
-      "7. MLOps"
+      "9. MLOps"
     ]
   },
   {
-    "objectID": "07-mlops.html#automatización-con-github-actions-cicd",
-    "href": "07-mlops.html#automatización-con-github-actions-cicd",
-    "title": "7. MLOps",
-    "section": "7.5 Automatización con GitHub Actions (CI/CD)",
-    "text": "7.5 Automatización con GitHub Actions (CI/CD)\nEl archivo .github/workflows/publicar.yml publica el sitio en GitHub Pages cada vez que se sube un cambio a la rama main. Gracias a freeze: auto, GitHub reutiliza los resultados guardados en _freeze/ y no necesita los datos ni volver a entrenar los modelos.\non:\n  push:\n    branches: main\njobs:\n  publicar:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: quarto-dev/quarto-actions/setup@v2\n      - uses: quarto-dev/quarto-actions/publish@v2\n        with:\n          target: gh-pages",
+    "objectID": "09-mlops.html#automatización-con-github-actions-cicd",
+    "href": "09-mlops.html#automatización-con-github-actions-cicd",
+    "title": "9. MLOps",
+    "section": "9.5 Automatización con GitHub Actions (CI/CD)",
+    "text": "9.5 Automatización con GitHub Actions (CI/CD)\nEl archivo .github/workflows/publicar.yml publica el sitio en GitHub Pages cada vez que se sube un cambio a la rama main. Gracias a freeze: auto, GitHub reutiliza los resultados guardados en _freeze/ y no necesita los datos ni volver a entrenar los modelos.\non:\n  push:\n    branches: main\njobs:\n  publicar:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: quarto-dev/quarto-actions/setup@v2\n      - uses: quarto-dev/quarto-actions/publish@v2\n        with:\n          target: gh-pages",
     "crumbs": [
       "MLOps y datos abiertos",
-      "7. MLOps"
+      "9. MLOps"
     ]
   },
   {
-    "objectID": "07-mlops.html#ciclo-completo",
-    "href": "07-mlops.html#ciclo-completo",
-    "title": "7. MLOps",
-    "section": "7.6 Ciclo completo",
-    "text": "7.6 Ciclo completo\n\n\nCódigo\nflowchart LR\n  A[\"Datos nuevos&lt;br/&gt;(ENAHO de otro año)\"] --&gt; B[\"quarto render&lt;br/&gt;pipeline completo\"]\n  B --&gt; C[\"Registro de modelos&lt;br/&gt;nueva versión\"]\n  C --&gt; D[\"API plumber&lt;br/&gt;predicciones\"]\n  C --&gt; E[\"PostgreSQL&lt;br/&gt;resultados\"]\n  D --&gt; F[\"Monitoreo&lt;br/&gt;métricas por año\"]\n  F -- \"si el desempeño baja\" --&gt; B\n  B --&gt; G[\"git push\"] --&gt; H[\"GitHub Actions&lt;br/&gt;publica el sitio\"]\n\n\n\n\n\n\nflowchart LR\n  A[\"Datos nuevos&lt;br/&gt;(ENAHO de otro año)\"] --&gt; B[\"quarto render&lt;br/&gt;pipeline completo\"]\n  B --&gt; C[\"Registro de modelos&lt;br/&gt;nueva versión\"]\n  C --&gt; D[\"API plumber&lt;br/&gt;predicciones\"]\n  C --&gt; E[\"PostgreSQL&lt;br/&gt;resultados\"]\n  D --&gt; F[\"Monitoreo&lt;br/&gt;métricas por año\"]\n  F -- \"si el desempeño baja\" --&gt; B\n  B --&gt; G[\"git push\"] --&gt; H[\"GitHub Actions&lt;br/&gt;publica el sitio\"]",
+    "objectID": "09-mlops.html#ciclo-completo",
+    "href": "09-mlops.html#ciclo-completo",
+    "title": "9. MLOps",
+    "section": "9.6 Ciclo completo",
+    "text": "9.6 Ciclo completo\n\n\nCódigo\nflowchart LR\n  A[\"Datos nuevos&lt;br/&gt;(ENAHO de otro año)\"] --&gt; B[\"quarto render&lt;br/&gt;pipeline completo\"]\n  B --&gt; C[\"Registro de modelos&lt;br/&gt;nueva versión\"]\n  C --&gt; D[\"API plumber&lt;br/&gt;predicciones\"]\n  C --&gt; E[\"PostgreSQL&lt;br/&gt;resultados\"]\n  D --&gt; F[\"Monitoreo&lt;br/&gt;métricas por año\"]\n  F -- \"si el desempeño baja\" --&gt; B\n  B --&gt; G[\"git push\"] --&gt; H[\"GitHub Actions&lt;br/&gt;publica el sitio\"]\n\n\n\n\n\n\nflowchart LR\n  A[\"Datos nuevos&lt;br/&gt;(ENAHO de otro año)\"] --&gt; B[\"quarto render&lt;br/&gt;pipeline completo\"]\n  B --&gt; C[\"Registro de modelos&lt;br/&gt;nueva versión\"]\n  C --&gt; D[\"API plumber&lt;br/&gt;predicciones\"]\n  C --&gt; E[\"PostgreSQL&lt;br/&gt;resultados\"]\n  D --&gt; F[\"Monitoreo&lt;br/&gt;métricas por año\"]\n  F -- \"si el desempeño baja\" --&gt; B\n  B --&gt; G[\"git push\"] --&gt; H[\"GitHub Actions&lt;br/&gt;publica el sitio\"]",
     "crumbs": [
       "MLOps y datos abiertos",
-      "7. MLOps"
+      "9. MLOps"
     ]
   },
   {
-    "objectID": "09-disponibilidad-datos.html",
-    "href": "09-disponibilidad-datos.html",
-    "title": "9. Disponibilidad de datos y código",
+    "objectID": "11-disponibilidad-datos.html",
+    "href": "11-disponibilidad-datos.html",
+    "title": "11. Disponibilidad de datos y código",
     "section": "",
-    "text": "NotaDisponibilidad de datos\n\n\n\nLos microdatos originales provienen de la Encuesta Nacional de Hogares (ENAHO) 2014–2025 del Instituto Nacional de Estadística e Informática (INEI), módulos 200, 300 y 500, disponibles públicamente en el portal de microdatos del INEI (https://proyectos.inei.gob.pe/microdatos/).\nLa base procesada utilizada en el análisis (base_modelo.csv.gz: 288 241 asalariados, 2 variables objetivo y 19 predictoras) y su diccionario de variables están disponibles en Zenodo: doi.org/10.5281/zenodo.24377138.\nEl código del pipeline (integración, limpieza, modelado, validación y MLOps) está disponible en GitHub: github.com/joe-cru-77/enaho-regresion-multivariada, archivado en Zenodo con el DOI doi.org/10.5281/zenodo.24377368.",
+    "text": "NotaDisponibilidad de datos\n\n\n\nLos microdatos originales provienen de la Encuesta Nacional de Hogares (ENAHO) 2014–2025 del Instituto Nacional de Estadística e Informática (INEI), módulos 200, 300 y 500, disponibles públicamente en el portal de microdatos del INEI (https://proyectos.inei.gob.pe/microdatos/).\nLa base procesada utilizada en el análisis (base_modelo.csv.gz: 288 241 asalariados, 2 variables objetivo y 19 predictoras) y su diccionario de variables están disponibles en Zenodo: doi.org/10.5281/zenodo.24377138. La base de selección utilizada en el modelo bietápico de Heckman (base_seleccion.csv.gz: personas de 14 años a más, asalariadas o no) se publica en la versión 2 del mismo registro.\nEl código del pipeline (integración, limpieza, modelado, validación y MLOps) está disponible en GitHub: github.com/joe-cru-77/enaho-regresion-multivariada, archivado en Zenodo con el DOI doi.org/10.5281/zenodo.24377368.",
     "crumbs": [
       "MLOps y datos abiertos",
-      "9. Disponibilidad de datos"
+      "11. Disponibilidad de datos"
     ]
   },
   {
-    "objectID": "09-disponibilidad-datos.html#qué-va-en-cada-plataforma",
-    "href": "09-disponibilidad-datos.html#qué-va-en-cada-plataforma",
-    "title": "9. Disponibilidad de datos y código",
+    "objectID": "11-disponibilidad-datos.html#disponibilidad-de-datos-data-availability",
+    "href": "11-disponibilidad-datos.html#disponibilidad-de-datos-data-availability",
+    "title": "11. Disponibilidad de datos y código",
+    "section": "",
+    "text": "NotaDisponibilidad de datos\n\n\n\nLos microdatos originales provienen de la Encuesta Nacional de Hogares (ENAHO) 2014–2025 del Instituto Nacional de Estadística e Informática (INEI), módulos 200, 300 y 500, disponibles públicamente en el portal de microdatos del INEI (https://proyectos.inei.gob.pe/microdatos/).\nLa base procesada utilizada en el análisis (base_modelo.csv.gz: 288 241 asalariados, 2 variables objetivo y 19 predictoras) y su diccionario de variables están disponibles en Zenodo: doi.org/10.5281/zenodo.24377138. La base de selección utilizada en el modelo bietápico de Heckman (base_seleccion.csv.gz: personas de 14 años a más, asalariadas o no) se publica en la versión 2 del mismo registro.\nEl código del pipeline (integración, limpieza, modelado, validación y MLOps) está disponible en GitHub: github.com/joe-cru-77/enaho-regresion-multivariada, archivado en Zenodo con el DOI doi.org/10.5281/zenodo.24377368.",
+    "crumbs": [
+      "MLOps y datos abiertos",
+      "11. Disponibilidad de datos"
+    ]
+  },
+  {
+    "objectID": "11-disponibilidad-datos.html#verificaciones-automáticas-del-pipeline",
+    "href": "11-disponibilidad-datos.html#verificaciones-automáticas-del-pipeline",
+    "title": "11. Disponibilidad de datos y código",
+    "section": "Verificaciones automáticas del pipeline",
+    "text": "Verificaciones automáticas del pipeline\nAntes de publicar se ejecuta source(\"R/verificar_pipeline.R\"). El script comprueba los datos y los resultados que guardaron las páginas 01 a 08 y se detiene si alguna verificación falla. También guarda la huella SHA-256 de cada archivo de datos: quien descargue los datos de Zenodo y obtenga la misma huella tiene exactamente los mismos archivos.\n\n\nCódigo\nlibrary(readr)\nlibrary(dplyr)\n\nverif &lt;- read_csv(here::here(\"outputs\", \"tablas\", \"verificaciones.csv\"),\n                  show_col_types = FALSE)\n\nverif |&gt;\n  mutate(Resultado = if_else(cumple, \"✔ Cumple\", \"✘ Falla\")) |&gt;\n  select(Etapa = etapa, `Verificación` = verificacion,\n         Obtenido = obtenido, Esperado = esperado, Resultado) |&gt;\n  knitr::kable()\n\n\n\n\nTabla 1: Verificaciones automáticas del pipeline\n\n\n\n\n\n\n\n\n\n\n\n\n\nEtapa\nVerificación\nObtenido\nEsperado\nResultado\n\n\n\n\nDatos\nBases procesadas presentes (modelo, selección, contexto)\n4 archivos\n3 archivos\n✔ Cumple\n\n\nDatos\nFilas de base_modelo = último paso del embudo\n288,241\n288,241\n✔ Cumple\n\n\nDatos\nEl embudo solo disminuye en cada paso\n1,512,409 &gt; 1,081,583 &gt; 309,026 &gt; 306,784 &gt; 288,241\ndecreciente\n✔ Cumple\n\n\nDatos\nSin personas repetidas (año + conglome + vivienda + hogar + codperso)\n0\n0\n✔ Cumple\n\n\nDatos\nLos 12 años (2014–2025) están presentes\n2014–2025\n2014–2025\n✔ Cumple\n\n\nDatos\nSin faltantes en Y1, Y2 y las 19 predictoras\n0\n0\n✔ Cumple\n\n\nDatos\nIngreso mensual positivo (Y1 finito)\n1.61 a 10.46\nfinito\n✔ Cumple\n\n\nDatos\nHoras por semana entre 1 y 168\n1 a 98\n1 a 168\n✔ Cumple\n\n\nDatos\nEdad de 14 años a más\n14\n&gt;= 14\n✔ Cumple\n\n\nHeckman\nPersonas de 14 años a más en la base de selección\n1,057,986\ntodas &gt;= 14\n✔ Cumple\n\n\nHeckman\nSin personas repetidas en la base de selección\n0\n0\n✔ Cumple\n\n\nHeckman\nAsalariados de la selección ≈ filas de base_modelo (diferencia &lt; 1 %)\n288,241\n≈ 288,241\n✔ Cumple\n\n\nPredictivo\nEntrenamiento + prueba = total\n288,241\n288,241\n✔ Cumple\n\n\nPredictivo\nPartición 80/20\n0.8\n0.8\n✔ Cumple\n\n\nPredictivo\nRandom Forest tiene el menor RMSE en Y1 y Y2\nrandom_forest, random_forest\nrandom_forest\n✔ Cumple\n\n\nPredictivo\nR² de prueba y de validación cruzada difieren &lt; 0,03 (sin sobreajuste)\n0.013\n&lt; 0.03\n✔ Cumple\n\n\nPredictivo\nLa semilla 2026 reproduce los mismos números aleatorios\n822905 18726 788079 711788 234672\nidénticos\n✔ Cumple\n\n\nHeckman\nTodos los predictores con Pillai significativo (p &lt; 0,05)\n19\ntodos\n✔ Cumple\n\n\nHeckman\nResiduos de Y1 y Y2 correlacionados (justifica el modelo multivariado)\n0.424\n&gt; 0.1\n✔ Cumple\n\n\nHeckman\nλ negativa en Y1 y Y2 (selección negativa)\n-0.166 y -6.865\n&lt; 0\n✔ Cumple\n\n\nHeckman\nλ conjuntamente significativa (Pillai)\n6.64e-73\n&lt; 0.05\n✔ Cumple\n\n\nHeckman\nλ no es combinación lineal exacta de X (R² &lt; 0,99)\n0.957\n&lt; 0.99\n✔ Cumple\n\n\nHeckman\nRetorno de la educación menor con Heckman que con MCO\n2.68 / 1.91\nHeckman &lt; MCO\n✔ Cumple\n\n\nHeckman\nheckit (sampleSelection) da λ con el mismo signo\n-0.234 y -8.29\n&lt; 0\n✔ Cumple\n\n\nSegmentos\nHeckman estimado en los 25 departamentos\n25\n25\n✔ Cumple\n\n\nSegmentos\nPuno (21) incluido\n21\npresente\n✔ Cumple\n\n\nSegmentos\nInteracciones con la región significativas\n4\ntodas p &lt; 0.05\n✔ Cumple\n\n\nSegmentos\nk elegido por silueta = número de grupos usado\n2\nigual\n✔ Cumple\n\n\nEntorno\nPaquetes instalados = renv.lock\nTRUE\nTRUE\n✔ Cumple\n\n\nEntorno\nVersión de R registrada\nR version 4.6.1 (2026-06-24 ucrt)\nNA\n✔ Cumple\n\n\nEntorno\nQuarto disponible\n1.11.9\nNA\n✔ Cumple\n\n\n\n\n\n\n\n\n\n\nCódigo\nverif |&gt; count(etapa, name = \"verificaciones\") |&gt;\n  mutate(cumplen = tapply(verif$cumple, verif$etapa, sum)[etapa])\n\n\n\n\n\n\netapa\nverificaciones\ncumplen\n\n\n\n\nDatos\n9\n9\n\n\nEntorno\n3\n3\n\n\nHeckman\n10\n10\n\n\nPredictivo\n5\n5\n\n\nSegmentos\n4\n4",
+    "crumbs": [
+      "MLOps y datos abiertos",
+      "11. Disponibilidad de datos"
+    ]
+  },
+  {
+    "objectID": "11-disponibilidad-datos.html#qué-va-en-cada-plataforma",
+    "href": "11-disponibilidad-datos.html#qué-va-en-cada-plataforma",
+    "title": "11. Disponibilidad de datos y código",
     "section": "¿Qué va en cada plataforma?",
     "text": "¿Qué va en cada plataforma?\n\n\n\n\n\n\n\n\nPlataforma\nQué se publica\nPara qué\n\n\n\n\nGitHub\nSolo el código: .qmd, R/, _quarto.yml, renv.lock, README\nControl de versiones del código y publicación del sitio web (GitHub Pages)\n\n\nZenodo (primera opción)\nLos datos: base_modelo.csv.gz y diccionario_base_modelo.csv\nAsignar un DOI permanente para citar los datos en el artículo\n\n\nMendeley Data (segunda opción)\nLos mismos datos\nTambién asigna DOI\n\n\nDataverse (repositorio institucional)\nLos mismos datos\nIniciativa de código abierto que usan varias universidades para alojar datos de investigación\n\n\n\nLos datos no se suben a GitHub. Los archivos grandes no se manejan bien en Git, y GitHub no asigna un DOI a los datos.",
     "crumbs": [
       "MLOps y datos abiertos",
-      "9. Disponibilidad de datos"
+      "11. Disponibilidad de datos"
     ]
   },
   {
-    "objectID": "09-disponibilidad-datos.html#pasos-para-publicar-los-datos-en-zenodo",
-    "href": "09-disponibilidad-datos.html#pasos-para-publicar-los-datos-en-zenodo",
-    "title": "9. Disponibilidad de datos y código",
+    "objectID": "11-disponibilidad-datos.html#pasos-para-publicar-los-datos-en-zenodo",
+    "href": "11-disponibilidad-datos.html#pasos-para-publicar-los-datos-en-zenodo",
+    "title": "11. Disponibilidad de datos y código",
     "section": "Pasos para publicar los datos en Zenodo",
-    "text": "Pasos para publicar los datos en Zenodo\n\nCrear una cuenta en https://zenodo.org (se puede entrar con la cuenta de GitHub).\nNew upload → subir:\n\ndatos/processed/base_modelo.csv.gz\ndatos/processed/diccionario_base_modelo.csv\n\nCompletar el formulario:\n\nResource type: Dataset.\nTitle: «Base de modelado ENAHO 2014–2025: ingreso y horas de los asalariados del Perú».\nCreators: los integrantes del grupo, con su afiliación (Universidad Nacional del Altiplano – Puno).\nDescription: fuente (INEI, ENAHO módulos 200, 300 y 500), población (asalariados ocupados), número de filas y variables, y enlace al repositorio de GitHub.\nLicense: Creative Commons Attribution 4.0 (CC BY 4.0).\nRelated works: el enlace al repositorio de GitHub (is supplemented by).\n\nPublish → Zenodo asigna el DOI (10.5281/zenodo.XXXXXXX).\nCopiar el DOI en esta página, en el README.md, en CITATION.cff y en la sección de disponibilidad de datos del artículo.",
+    "text": "Pasos para publicar los datos en Zenodo\n\nCrear una cuenta en https://zenodo.org (se puede entrar con la cuenta de GitHub).\nNew upload → subir:\n\ndatos/processed/base_modelo.csv.gz\ndatos/processed/diccionario_base_modelo.csv\n\nCompletar el formulario:\n\nResource type: Dataset.\nTitle: «Base de modelado ENAHO 2014–2025: ingreso y horas de los asalariados del Perú».\nCreators: los integrantes del grupo, con su afiliación (Universidad Nacional del Altiplano – Puno).\nDescription: fuente (INEI, ENAHO módulos 200, 300 y 500), población (asalariados ocupados), número de filas y variables, y enlace al repositorio de GitHub.\nLicense: Creative Commons Attribution 4.0 (CC BY 4.0).\nRelated works: el enlace al repositorio de GitHub (is supplemented by).\n\nPublish → Zenodo asigna el DOI (10.5281/zenodo.24377138).\nCopiar el DOI en esta página, en el README.md, en CITATION.cff y en la sección de disponibilidad de datos del artículo.",
     "crumbs": [
       "MLOps y datos abiertos",
-      "9. Disponibilidad de datos"
+      "11. Disponibilidad de datos"
     ]
   },
   {
-    "objectID": "09-disponibilidad-datos.html#pasos-para-archivar-el-código-con-doi-github-zenodo",
-    "href": "09-disponibilidad-datos.html#pasos-para-archivar-el-código-con-doi-github-zenodo",
-    "title": "9. Disponibilidad de datos y código",
+    "objectID": "11-disponibilidad-datos.html#pasos-para-archivar-el-código-con-doi-github-zenodo",
+    "href": "11-disponibilidad-datos.html#pasos-para-archivar-el-código-con-doi-github-zenodo",
+    "title": "11. Disponibilidad de datos y código",
     "section": "Pasos para archivar el código con DOI (GitHub + Zenodo)",
     "text": "Pasos para archivar el código con DOI (GitHub + Zenodo)\n\nEn Zenodo: Account → GitHub y activar el repositorio enaho-regresion-multivariada.\nEn GitHub: crear una Release (por ejemplo, v1.0.0).\nZenodo archiva automáticamente esa versión del código y le asigna su propio DOI.",
     "crumbs": [
       "MLOps y datos abiertos",
-      "9. Disponibilidad de datos"
+      "11. Disponibilidad de datos"
     ]
   },
   {
-    "objectID": "09-disponibilidad-datos.html#cómo-citar",
-    "href": "09-disponibilidad-datos.html#cómo-citar",
-    "title": "9. Disponibilidad de datos y código",
+    "objectID": "11-disponibilidad-datos.html#cómo-citar",
+    "href": "11-disponibilidad-datos.html#cómo-citar",
+    "title": "11. Disponibilidad de datos y código",
     "section": "Cómo citar",
     "text": "Cómo citar\nVer el archivo CITATION.cff del repositorio (GitHub muestra el botón Cite this repository).",
     "crumbs": [
       "MLOps y datos abiertos",
-      "9. Disponibilidad de datos"
+      "11. Disponibilidad de datos"
     ]
   }
 ]

@@ -11,6 +11,9 @@ paquetes <- c(
   "glmnet",      # regresión regularizada (Ridge / Lasso / Elastic Net)
   "ranger",      # Random Forest
   "broom",       # coeficientes en formato tabla
+  "survey",      # factores de expansión y diseño muestral de la ENAHO
+  "sampleSelection", # modelo de Heckman con errores estándar corregidos
+  "cluster",     # coeficiente de silueta para elegir el número de grupos
   "knitr",       # tablas en las páginas
   "vetiver", "pins", "plumber",   # MLOps: registro de modelos, versiones y API
   "lubridate",                    # fechas para el monitoreo

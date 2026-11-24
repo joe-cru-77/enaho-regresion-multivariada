@@ -1,0 +1,7 @@
+objetivo,parametro,estimacion,error_est
+y1_ln_ingreso_mensual,invMillsRatio,-0.23417734329747272,0.029928095070750112
+y1_ln_ingreso_mensual,rho,-0.3642842518666836,NA
+y1_ln_ingreso_mensual,sigma,0.6428423465946975,NA
+y2_horas_semanales,invMillsRatio,-8.289512310168755,0.747361773014986
+y2_horas_semanales,rho,-0.5004043783431701,NA
+y2_horas_semanales,sigma,16.565627058690374,NA

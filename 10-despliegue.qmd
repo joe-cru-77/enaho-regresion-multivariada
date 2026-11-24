@@ -1,5 +1,5 @@
 ---
-title: "8. Despliegue en un sistema de gestión de datos"
+title: "10. Despliegue en un sistema de gestión de datos"
 description: "Carga de la base del modelo y de los resultados en PostgreSQL"
 ---
 
@@ -12,7 +12,7 @@ library(DBI)
 
 Para que otros sistemas (un dashboard en línea, una API o un análisis en SQL) puedan usar los resultados, el pipeline los publica en un **sistema de gestión de bases de datos**: PostgreSQL.
 
-## 8.1 Credenciales fuera del código
+## 10.1 Credenciales fuera del código
 
 La contraseña **nunca** se escribe en el código, porque el código se sube a GitHub. Se guarda en el archivo `.Renviron` de la carpeta del proyecto, que está en `.gitignore`:
 
@@ -43,7 +43,7 @@ if (desplegar) {
 }
 ```
 
-## 8.2 Tablas que se publican
+## 10.2 Tablas que se publican
 
 | Tabla | Contenido |
 |---|---|
@@ -80,6 +80,6 @@ if (desplegar) {
 }
 ```
 
-## 8.3 Siguiente paso: despliegue en la nube
+## 10.3 Siguiente paso: despliegue en la nube
 
 La misma etapa sirve para un servidor PostgreSQL en la nube (por ejemplo, el de la universidad o un servicio gestionado): solo cambian los valores de `PGHOST`, `PGUSER` y `PGPASSWORD` en `.Renviron`. El código no se modifica.

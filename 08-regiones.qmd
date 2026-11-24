@@ -1,0 +1,516 @@
+---
+title: "8. Heterogeneidad del mercado laboral"
+description: "Región natural, departamento (con foco en Puno), empleo formal e informal, rubro económico y grupos de departamentos similares"
+---
+
+```{r}
+#| label: setup
+#| include: false
+source(here::here("R", "00_config.R"))
+source(here::here("R", "02_funciones_limpieza.R"))
+source(here::here("R", "03_funciones_modelado.R"))
+source(here::here("R", "04_funciones_econometria.R"))
+source(here::here("R", "05_funciones_segmentacion.R"))
+
+base_modelo <- leer_base_modelo()
+interim_listo <- all(file.exists(file.path(rutas$interim, sprintf("enaho_unida_%d.rds", anios))))
+archivo_lambda <- file.path(rutas$processed, "lambda_heckman.csv.gz")
+
+# Variables de contexto (departamento e informalidad) desde la base unida
+if (!file.exists(archivo_base_contexto) && interim_listo) {
+  unida <- leer_base_unida()
+  write_csv(construir_base_contexto(unida), archivo_base_contexto)
+  rm(unida); invisible(gc())
+}
+hay_lambda   <- file.exists(archivo_lambda) && file.exists(archivo_base_seleccion)
+hay_contexto <- file.exists(archivo_base_contexto)
+listo        <- hay_lambda && hay_contexto
+
+col_region <- c(`Lima Metropolitana` = "#1F3864", `Costa (sin Lima)` = "#2F5496",
+                Sierra = "#C55A11", Selva = "#548235")
+orden_region <- c("lima_metropolitana", "costa", "sierra", "selva")
+nombre_region <- function(x) factor(etiqueta_region[as.character(x)], levels = etiqueta_region[orden_region])
+terminos_clave <- c(anios_educ = "Años de educación", mujer = "Mujer",
+                    sector_publico = "Sector público", afiliado_pensiones = "Afiliado a pensiones")
+etiqueta_obj <- c(y1_ln_ingreso_mensual = "Y1: ingreso (% de cambio)",
+                  y2_horas_semanales = "Y2: horas por semana")
+azul <- "#2F5496"; naranja <- "#C55A11"
+```
+
+```{r}
+#| label: datos
+#| include: false
+if (listo) {
+  contexto  <- leer_base_contexto()
+  lambda    <- read_csv(archivo_lambda, show_col_types = FALSE)
+  seleccion <- leer_base_seleccion() %>% agregar_contexto(contexto)
+  base <- base_modelo %>%
+    agregar_contexto(contexto) %>%
+    mutate(informal   = informalidad_aprox(contrato, afiliado_pensiones),
+           rubro      = rubro_economico(rama),
+           agro       = as.integer(rama == "A_agropecuario"),
+           formalidad = case_when(informal == 1 ~ "Informal", informal == 0 ~ "Formal"))
+  diseno <- diseno_encuesta(base)
+
+  # Modelo de Heckman nacional (referencia para comparar los segmentos)
+  nacional <- coeficientes_mv(etapa2_multivariada(base, lambda)$heckman, "Heckman") %>%
+    filter(termino %in% terminos_segmento) %>%
+    a_efectos()
+}
+```
+
+```{r}
+#| label: aviso
+#| echo: false
+#| results: asis
+if (!listo) cat("::: {.callout-warning}\nEsta etapa necesita la base de selección y λ (etapa 7) y la base de contexto (se construye con la base unida de la etapa 1). Ejecuta primero `07-heckman.qmd`.\n:::\n")
+```
+
+El mercado laboral peruano no es homogéneo: las condiciones de trabajo, los horarios y los rubros predominantes cambian entre la costa, la sierra y la selva, entre departamentos y entre el empleo formal y el informal. Un único modelo para todo el país supone que la educación, el sexo o el sector público afectan el ingreso y las horas **igual en todas partes**. Esta etapa pone a prueba ese supuesto con cinco segmentaciones:
+
+| Segmentación | Fuente | Etapa 1 de Heckman |
+|---|---|---|
+| Región natural (costa, sierra, selva, Lima Metropolitana) | `dominio` | estimada en cada región |
+| Departamento (25), con foco en **Puno** | `ubigeo` | estimada en cada departamento |
+| Empleo formal o informal | sin contrato o sin aporte a pensiones (`p511a`, `p558a`) | nacional |
+| Rubro económico (6 grupos de ramas CIIU) | `p506r4` | nacional |
+| Grupos de departamentos similares (*k-means*) | perfil laboral de cada departamento | nacional |
+
+::: {.callout-note}
+La ENAHO registra las **horas trabajadas por semana**, pero no la **hora de inicio** de la jornada. Las diferencias de horario entre regiones se analizan a través de la duración de la jornada y del ingreso por hora.
+:::
+
+## 8.1 Región natural
+
+Los promedios se calculan con el **factor de expansión** (`fac500a`) y el **diseño muestral** de la ENAHO: conglomerados (`conglome` dentro de cada año) y estratos aproximados por año, departamento y área. Así describen a todos los asalariados del Perú, no solo a la muestra.
+
+```{r}
+#| label: regiones-ponderado
+#| eval: !expr listo
+descriptivos <- medias_region(diseno) %>%
+  left_join(diseno$variables %>% group_by(region) %>%
+              summarise(across(c(ingreso_mensual, horas, ingreso_hora), mean)) %>%
+              pivot_longer(-region, names_to = "variable", values_to = "media_muestra"),
+            by = c("region", "variable")) %>%
+  mutate(ic_inf = media - 1.96 * error_est, ic_sup = media + 1.96 * error_est)
+guardar_tabla(descriptivos, "regiones_descriptivos_ponderados")
+
+nombres_var <- c(ingreso_mensual = "Ingreso mensual (S/)", horas = "Horas por semana",
+                 ingreso_hora = "Ingreso por hora (S/)")
+descriptivos %>%
+  mutate(Región = nombre_region(region), variable = nombres_var[variable]) %>%
+  arrange(variable, Región) %>%
+  transmute(Variable = variable, Región, `Media ponderada` = round(media, 1),
+            `Error estándar` = round(error_est, 2), `Media de la muestra` = round(media_muestra, 1))
+```
+
+```{r}
+#| label: fig-regiones-medias
+#| fig-cap: "Ingreso mensual, horas e ingreso por hora por región (medias ponderadas e intervalo de confianza del 95 %)"
+#| fig-width: 10
+#| fig-height: 3.8
+#| eval: !expr listo
+descriptivos %>%
+  mutate(region = nombre_region(region), variable = factor(nombres_var[variable], levels = nombres_var)) %>%
+  ggplot(aes(region, media, fill = region)) +
+  geom_col(width = 0.7, show.legend = FALSE) +
+  geom_errorbar(aes(ymin = ic_inf, ymax = ic_sup), width = 0.2) +
+  facet_wrap(~ variable, scales = "free_y") +
+  scale_fill_manual(values = col_region) +
+  labs(x = NULL, y = NULL) +
+  theme(axis.text.x = element_text(angle = 20, hjust = 1))
+```
+
+```{r}
+#| label: fig-jornada
+#| fig-cap: "Distribución de la jornada semanal por región (porcentajes ponderados)"
+#| fig-width: 9
+#| fig-height: 3.6
+#| eval: !expr listo
+jornada <- svyby(~jornada, ~region, diseno, svymean, na.rm = TRUE) %>%
+  as_tibble() %>%
+  select(region, starts_with("jornada")) %>%
+  pivot_longer(-region, names_to = "jornada", values_to = "proporcion") %>%
+  mutate(jornada = factor(str_remove(jornada, "^jornada"),
+                          levels = c("Menos de 35 h", "35 a 48 h", "Más de 48 h")))
+guardar_tabla(jornada, "regiones_jornada")
+
+jornada %>%
+  mutate(region = nombre_region(region)) %>%
+  ggplot(aes(100 * proporcion, region, fill = jornada)) +
+  geom_col(width = 0.7) +
+  geom_text(aes(label = sprintf("%.0f %%", 100 * proporcion)),
+            position = position_stack(vjust = 0.5), color = "white", size = 3.5) +
+  scale_fill_manual(values = c(`Menos de 35 h` = "#8FAADC", `35 a 48 h` = azul, `Más de 48 h` = naranja)) +
+  labs(x = "% de asalariados", y = NULL, fill = "Jornada semanal") +
+  theme(legend.position = "bottom")
+```
+
+**¿Los efectos cambian por región?** Se agrega al modelo de Heckman nacional la interacción de la región con las cuatro predictoras principales. Las interacciones entran al final, así que la prueba de Pillai de cada una indica si ese efecto sobre el ingreso y las horas **difiere entre regiones** una vez controladas las demás variables.
+
+```{r}
+#| label: interacciones
+#| eval: !expr listo
+d_int <- base %>% inner_join(lambda, by = llaves_persona)
+interacciones <- paste0("region:", names(terminos_clave))
+modelo_int <- lm(formula_resultado(d_int, excluir_resultado_heckman, c("lambda", interacciones)), data = d_int)
+pillai_int <- pillai_mv(modelo_int) %>% filter(str_detect(termino, ":"))
+guardar_tabla(pillai_int, "regiones_interacciones_pillai")
+
+pillai_int %>%
+  transmute(Interacción = paste("Región ×", terminos_clave[str_remove(termino, "region:|:region")]),
+            Pillai = signif(Pillai, 3), `F aprox.` = round(`approx F`, 1),
+            gl = Df, `p-valor` = signif(`Pr(>F)`, 3))
+```
+
+```{r}
+#| label: heckman-region
+#| eval: !expr listo
+por_region <- heckman_por_segmento(base, "region", seleccion = seleccion, excluir = "region")
+guardar_tabla(por_region, "regiones_coeficientes")
+```
+
+```{r}
+#| label: fig-efectos-region
+#| fig-cap: "Efectos por región (modelo de Heckman estimado en cada región, intervalo del 95 %). La línea punteada es el efecto nacional."
+#| fig-width: 10
+#| fig-height: 5.5
+#| eval: !expr listo
+grafico_efectos <- function(coefs, etiqueta, colores = NULL, terminos = names(terminos_clave)) {
+  coefs %>%
+    filter(termino %in% terminos) %>%
+    a_efectos() %>%
+    mutate(variable = terminos_clave[termino], objetivo = etiqueta_obj[objetivo],
+           nivel = etiqueta(segmento)) %>%
+    ggplot(aes(estimacion, nivel, color = nivel)) +
+    geom_vline(data = nacional %>% filter(termino %in% terminos) %>%
+                 mutate(variable = terminos_clave[termino], objetivo = etiqueta_obj[objetivo]),
+               aes(xintercept = estimacion), linetype = "dashed", color = "grey40") +
+    geom_pointrange(aes(xmin = ic_inf, xmax = ic_sup), show.legend = FALSE) +
+    facet_grid(objetivo ~ variable, scales = "free_x") +
+    { if (!is.null(colores)) scale_color_manual(values = colores) } +
+    labs(x = "Efecto estimado", y = NULL)
+}
+grafico_efectos(por_region, function(x) as.character(nombre_region(x)), col_region)
+```
+
+## 8.2 Departamentos: Puno frente al resto del país
+
+```{r}
+#| label: perfil-departamentos
+#| eval: !expr listo
+perfil <- perfil_departamentos(diseno)
+guardar_tabla(perfil, "departamentos_perfil_ponderado")
+```
+
+```{r}
+#| label: fig-dep-perfil
+#| fig-cap: "Perfil laboral ponderado de los asalariados por departamento (Puno en naranja; la línea punteada es el promedio de los departamentos)"
+#| fig-width: 10
+#| fig-height: 6.5
+#| eval: !expr listo
+orden_dep <- perfil$nombre_dep[order(perfil$ingreso_mensual)]   # ordenados por ingreso
+perfil %>%
+  transmute(nombre_dep, `Ingreso mensual (S/)` = ingreso_mensual, `Horas por semana` = horas,
+            `% informal` = 100 * informal, `% en el agro` = 100 * agro) %>%
+  pivot_longer(-nombre_dep) %>%
+  group_by(name) %>% mutate(promedio = mean(value)) %>% ungroup() %>%
+  mutate(es_puno = nombre_dep == "Puno",
+         nombre_dep = factor(nombre_dep, levels = orden_dep),
+         name = factor(name, levels = c("Ingreso mensual (S/)", "Horas por semana", "% informal", "% en el agro"))) %>%
+  ggplot(aes(value, nombre_dep, color = es_puno)) +
+  geom_vline(aes(xintercept = promedio), linetype = "dashed", color = "grey50") +
+  geom_point(size = 2.3, show.legend = FALSE) +
+  facet_wrap(~ name, scales = "free_x", nrow = 1) +
+  scale_color_manual(values = c(`TRUE` = naranja, `FALSE` = azul)) +
+  labs(x = NULL, y = NULL) +
+  theme(axis.text.y = element_text(size = 8))
+```
+
+```{r}
+#| label: heckman-departamento
+#| eval: !expr listo
+por_dep <- heckman_por_segmento(base, "departamento", seleccion = seleccion)
+guardar_tabla(por_dep, "departamentos_coeficientes")
+```
+
+```{r}
+#| label: fig-dep-efectos
+#| fig-cap: "Retorno de un año de educación y brecha de ingreso de las mujeres por departamento (Heckman por departamento, intervalo del 95 %). Puno en naranja; la línea punteada es el efecto nacional."
+#| fig-width: 10
+#| fig-height: 6.5
+#| eval: !expr listo
+por_dep %>%
+  filter(objetivo == objetivos[1], termino %in% c("anios_educ", "mujer")) %>%
+  a_efectos() %>%
+  mutate(variable = terminos_clave[termino], nombre_dep = nombres_departamento[segmento],
+         es_puno = nombre_dep == "Puno") %>%
+  ggplot(aes(estimacion, reorder(paste(nombre_dep, variable, sep = "___"), estimacion), color = es_puno)) +
+  geom_vline(data = nacional %>% filter(objetivo == objetivos[1], termino %in% c("anios_educ", "mujer")) %>%
+               mutate(variable = terminos_clave[termino]),
+             aes(xintercept = estimacion), linetype = "dashed", color = "grey40") +
+  geom_pointrange(aes(xmin = ic_inf, xmax = ic_sup), show.legend = FALSE, size = 0.3) +
+  facet_wrap(~ variable, scales = "free") +
+  scale_y_discrete(labels = function(x) str_remove(x, "___.*$")) +
+  scale_color_manual(values = c(`TRUE` = naranja, `FALSE` = azul)) +
+  labs(x = "% de cambio del ingreso", y = NULL) +
+  theme(axis.text.y = element_text(size = 8))
+```
+
+**Puno en contexto.** Comparación ponderada de Puno con Lima y el promedio nacional:
+
+```{r}
+#| label: puno
+#| eval: !expr listo
+nac_desc <- svymean(~ingreso_mensual + horas + informal + agro, diseno, na.rm = TRUE)
+fila <- function(nombre, desc, coefs) {
+  ef <- function(t, o) coefs$estimacion[coefs$termino == t & coefs$objetivo == o]
+  tibble(Ámbito = nombre,
+         `Ingreso mensual (S/)` = round(desc$ingreso_mensual), `Horas por semana` = round(desc$horas, 1),
+         `% informal` = round(100 * desc$informal, 1), `% en el agro` = round(100 * desc$agro, 1),
+         `Retorno educación (%)` = round(ef("anios_educ", objetivos[1]), 1),
+         `Brecha mujeres (%)` = round(ef("mujer", objetivos[1]), 1),
+         `Horas mujeres` = round(ef("mujer", objetivos[2]), 2))
+}
+dep_coef <- function(cod) por_dep %>% filter(segmento == cod) %>% a_efectos()
+puno_tabla <- bind_rows(
+  fila("Puno", filter(perfil, departamento == "21"), dep_coef("21")),
+  fila("Lima", filter(perfil, departamento == "15"), dep_coef("15")),
+  fila("Perú", as.list(coef(nac_desc)), nacional))
+guardar_tabla(puno_tabla, "puno_comparacion")
+puno_tabla
+```
+
+## 8.3 Empleo formal e informal
+
+La informalidad cambia por completo las condiciones de trabajo: sin contrato ni seguridad social, el ingreso depende menos de la educación y las jornadas son más irregulares. La variable oficial de informalidad del INEI (`ocupinf`) no está disponible en los 12 años de la base unida, por lo que se usa una aproximación al criterio del INEI para asalariados: es **informal** quien **no tiene contrato o no aporta a un sistema de pensiones** (las FF.AA. y la PNP se consideran formales). Dentro del grupo formal, la afiliación a pensiones no varía y sale automáticamente del modelo.
+
+```{r}
+#| label: formalidad
+#| eval: !expr listo
+form_desc <- svyby(~ingreso_mensual + horas, ~formalidad + region, diseno, svymean, na.rm = TRUE) %>%
+  as_tibble() %>% select(formalidad, region, ingreso_mensual, horas)
+guardar_tabla(form_desc, "formalidad_descriptivos")
+
+por_formalidad <- heckman_por_segmento(filter(base, !is.na(formalidad)), "formalidad",
+                                       lambda_nacional = lambda)
+guardar_tabla(por_formalidad, "formalidad_coeficientes")
+
+form_desc %>%
+  mutate(region = nombre_region(region)) %>%
+  pivot_longer(c(ingreso_mensual, horas)) %>%
+  mutate(name = c(ingreso_mensual = "Ingreso mensual (S/)", horas = "Horas por semana")[name]) %>%
+  ggplot(aes(region, value, fill = formalidad)) +
+  geom_col(position = position_dodge(width = 0.75), width = 0.7) +
+  facet_wrap(~ name, scales = "free_y") +
+  scale_fill_manual(values = c(Formal = azul, Informal = naranja)) +
+  labs(x = NULL, y = NULL, fill = NULL, title = "Ingreso y horas por formalidad y región (ponderado)") +
+  theme(legend.position = "bottom", axis.text.x = element_text(angle = 15, hjust = 1))
+```
+
+```{r}
+#| label: fig-formalidad
+#| fig-cap: "Efectos en el empleo formal e informal (Heckman con λ nacional, intervalo del 95 %)"
+#| fig-width: 10
+#| fig-height: 4.5
+#| eval: !expr listo
+grafico_efectos(por_formalidad, identity, c(Formal = azul, Informal = naranja))
+```
+
+## 8.4 Rubro económico
+
+```{r}
+#| label: rubro
+#| eval: !expr listo
+por_rubro <- heckman_por_segmento(base, "rubro", lambda_nacional = lambda)
+guardar_tabla(por_rubro, "rubro_coeficientes")
+rubro_desc <- svyby(~ingreso_mensual + horas, ~rubro, diseno, svymean, na.rm = TRUE) %>%
+  as_tibble() %>% select(rubro, ingreso_mensual, horas)
+guardar_tabla(rubro_desc, "rubro_descriptivos")
+rubro_desc %>% mutate(across(where(is.numeric), ~ round(.x, 1))) %>% arrange(desc(ingreso_mensual))
+```
+
+```{r}
+#| label: fig-rubro
+#| fig-cap: "Efectos por rubro económico (Heckman con λ nacional, intervalo del 95 %). No se muestra el sector público: dentro de varios rubros hay muy pocos trabajadores públicos y su intervalo es demasiado amplio."
+#| fig-width: 10
+#| fig-height: 5.5
+#| eval: !expr listo
+grafico_efectos(por_rubro, identity, terminos = c("anios_educ", "mujer", "afiliado_pensiones"))
+```
+
+## 8.5 Grupos de departamentos similares (clustering)
+
+En lugar de agrupar los departamentos por su ubicación, se agrupan por **cómo funciona su mercado laboral**. Con el perfil ponderado de cada departamento (logaritmo del ingreso, horas, % informal, % en el agro, años de educación, % urbano y % en el sector público), estandarizado, se aplica *k-means*. El número de grupos se elige con el **coeficiente de silueta**.
+
+```{r}
+#| label: clusters
+#| eval: !expr listo
+grupos <- agrupar_departamentos(perfil)
+guardar_tabla(grupos$asignacion, "departamentos_grupos")
+guardar_tabla(grupos$siluetas, "departamentos_siluetas")
+base <- base %>% left_join(select(grupos$asignacion, departamento, grupo), by = "departamento")
+
+grupos$asignacion %>%
+  group_by(grupo) %>%
+  summarise(Departamentos = paste(sort(nombre_dep), collapse = ", "),
+            `Ingreso (S/)` = round(mean(ingreso_mensual)), Horas = round(mean(horas), 1),
+            `% informal` = round(100 * mean(informal), 1), `% agro` = round(100 * mean(agro), 1),
+            `Años de educ.` = round(mean(anios_educ), 1))
+```
+
+```{r}
+#| label: fig-clusters
+#| fig-cap: "Departamentos en los dos primeros componentes principales de su perfil laboral, coloreados por grupo"
+#| fig-width: 9
+#| fig-height: 5.5
+#| eval: !expr listo
+ggplot(grupos$asignacion, aes(pc1, pc2, color = grupo)) +
+  geom_hline(yintercept = 0, color = "grey85") + geom_vline(xintercept = 0, color = "grey85") +
+  geom_point(size = 3) +
+  geom_text(aes(label = nombre_dep), vjust = -0.9, size = 3, show.legend = FALSE) +
+  labs(x = sprintf("Componente 1 (%.0f %% de la varianza)", 100 * grupos$varianza_pca[1]),
+       y = sprintf("Componente 2 (%.0f %% de la varianza)", 100 * grupos$varianza_pca[2]),
+       color = NULL, subtitle = sprintf("k = %d grupos (silueta media = %.2f)", grupos$k,
+                                        max(grupos$siluetas$silueta_media))) +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+#| label: heckman-grupo
+#| eval: !expr listo
+por_grupo <- heckman_por_segmento(filter(base, !is.na(grupo)), "grupo", lambda_nacional = lambda)
+guardar_tabla(por_grupo, "grupos_coeficientes")
+```
+
+```{r}
+#| label: fig-grupos
+#| fig-cap: "Efectos por grupo de departamentos (Heckman con λ nacional, intervalo del 95 %)"
+#| fig-width: 10
+#| fig-height: 4.8
+#| eval: !expr listo
+grafico_efectos(por_grupo, identity)
+```
+
+## 8.6 Síntesis: ¿cuánto cambian los efectos según el segmento?
+
+```{r}
+#| label: fig-sintesis
+#| fig-cap: "Retorno de la educación y brecha de ingreso de las mujeres en cada segmento. La línea punteada es el efecto nacional."
+#| fig-width: 10
+#| fig-height: 7
+#| eval: !expr listo
+tipos <- c(region = "Región", formalidad = "Formalidad", rubro = "Rubro", grupo = "Grupo de departamentos")
+sintesis <- bind_rows(por_region %>% mutate(segmento = etiqueta_region[segmento]),
+                      por_formalidad, por_rubro, por_grupo) %>%
+  filter(objetivo == objetivos[1], termino %in% c("anios_educ", "mujer")) %>%
+  a_efectos() %>%
+  mutate(variable = terminos_clave[termino], tipo = factor(tipos[tipo_segmento], levels = tipos))
+guardar_tabla(sintesis, "segmentos_sintesis")
+
+ggplot(sintesis, aes(estimacion, reorder(segmento, estimacion))) +
+  geom_vline(data = nacional %>% filter(objetivo == objetivos[1], termino %in% c("anios_educ", "mujer")) %>%
+               mutate(variable = terminos_clave[termino]),
+             aes(xintercept = estimacion), linetype = "dashed", color = "grey40") +
+  geom_pointrange(aes(xmin = ic_inf, xmax = ic_sup), color = azul, size = 0.35) +
+  facet_grid(tipo ~ variable, scales = "free", space = "free_y") +
+  labs(x = "% de cambio del ingreso", y = NULL) +
+  theme(strip.text.y = element_text(angle = 0))
+```
+
+## 8.7 Resultados ponderados frente a no ponderados
+
+```{r}
+#| label: ponderado
+#| eval: !expr listo
+pond <- bind_rows(
+  coeficientes_mv(etapa2_multivariada(base, lambda)$heckman, "Sin ponderar"),
+  coeficientes_mv(etapa2_multivariada(base, lambda, pesos = "fac500a")$heckman, "Ponderado (fac500a)")) %>%
+  filter(termino %in% terminos_segmento)
+guardar_tabla(pond, "ponderado_vs_no")
+
+pond %>%
+  a_efectos() %>%
+  mutate(efecto = if_else(objetivo == objetivos[1] & termino != "lambda",
+                          sprintf("%+.1f %%", estimacion), sprintf("%+.3f", estimacion)),
+         variable = c(terminos_clave, lambda = "λ")[termino], objetivo = etiqueta_obj[objetivo]) %>%
+  select(objetivo, variable, modelo, efecto) %>%
+  pivot_wider(names_from = modelo, values_from = efecto)
+```
+
+## 8.8 Modelos predictivos por segmento
+
+¿Se predice mejor con un modelo para todo el Perú o con un modelo propio para cada segmento? Se compara el Random Forest global con uno por región y uno por grupo de departamentos, en el mismo conjunto de prueba.
+
+```{r}
+#| label: rf-segmentos
+#| eval: !expr listo
+p <- particionar(base)
+ml_segmentos <- bind_rows(
+  rf_por_segmento(p, "region", predictoras, "region"),
+  rf_por_segmento(p, "grupo", predictoras, character()))
+guardar_tabla(ml_segmentos, "segmentos_ml")
+```
+
+```{r}
+#| label: fig-rf-segmentos
+#| fig-cap: "R² del Random Forest en el conjunto de prueba de cada segmento: un modelo para todo el Perú frente a un modelo por segmento"
+#| fig-width: 10
+#| fig-height: 5
+#| eval: !expr listo
+ml_segmentos %>%
+  filter(metrica == "rsq") %>%
+  mutate(segmento = if_else(tipo_segmento == "region", etiqueta_region[segmento], segmento),
+         objetivo = c(y1_ln_ingreso_mensual = "Y1: ln ingreso", y2_horas_semanales = "Y2: horas")[objetivo]) %>%
+  ggplot(aes(segmento, valor, fill = enfoque)) +
+  geom_col(position = position_dodge(width = 0.75), width = 0.7) +
+  geom_text(aes(label = sprintf("%.2f", valor)), position = position_dodge(width = 0.75),
+            vjust = -0.4, size = 2.8) +
+  facet_grid(objetivo ~ tipo_segmento, scales = "free", space = "free_x",
+             labeller = labeller(tipo_segmento = c(region = "Región", grupo = "Grupo de departamentos"))) +
+  scale_fill_manual(values = c(`Un modelo para el Perú` = azul, `Un modelo por segmento` = naranja)) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.18))) +
+  labs(x = NULL, y = "R² en prueba", fill = NULL) +
+  theme(legend.position = "bottom", axis.text.x = element_text(angle = 20, hjust = 1))
+```
+
+## 8.9 Interpretación
+
+```{r}
+#| label: texto
+#| results: asis
+#| echo: false
+#| eval: !expr listo
+pct_ef <- function(df, t, o = objetivos[1]) df %>% filter(termino == t, objetivo == o) %>% a_efectos()
+rango <- function(df, t, nombres) {
+  x <- pct_ef(df, t)
+  sprintf("de %.1f %% (%s) a %.1f %% (%s)", min(x$estimacion), nombres(x$segmento[which.min(x$estimacion)]),
+          max(x$estimacion), nombres(x$segmento[which.max(x$estimacion)]))
+}
+dep_nom <- function(x) unname(nombres_departamento[x])
+reg_nom <- function(x) unname(etiqueta_region[x])
+sig_int <- pillai_int$termino[pillai_int$`Pr(>F)` < 0.05]
+puno_ed <- pct_ef(por_dep, "anios_educ") %>% filter(segmento == "21")
+nac_ed  <- nacional %>% filter(termino == "anios_educ", objetivo == objetivos[1])
+mr <- ml_segmentos %>% filter(metrica == "rsq") %>%
+  pivot_wider(names_from = enfoque, values_from = valor) %>%
+  mutate(mejora = `Un modelo por segmento` - `Un modelo para el Perú`)
+
+cat(sprintf("- **Región:** %s. El retorno de un año de educación va %s, y la brecha de ingreso de las mujeres %s.\n",
+  if (length(sig_int) == 0) "ninguna interacción con la región es significativa"
+  else paste0("las cuatro predictoras principales tienen efectos que difieren entre regiones (interacciones significativas: ",
+              paste(tolower(terminos_clave[str_remove(sig_int, "region:|:region")]), collapse = ", "), ")"),
+  rango(por_region, "anios_educ", reg_nom), rango(por_region, "mujer", reg_nom)))
+cat(sprintf("- **Departamentos:** el retorno de la educación va %s. En **Puno** es %.1f %% (IC 95 %%: %.1f a %.1f), frente a %.1f %% a nivel nacional.\n",
+  rango(por_dep, "anios_educ", dep_nom), puno_ed$estimacion, puno_ed$ic_inf, puno_ed$ic_sup, nac_ed$estimacion))
+cat(sprintf("- **Formalidad:** el retorno de la educación es %s, y la brecha de las mujeres %s.\n",
+  rango(por_formalidad, "anios_educ", identity), rango(por_formalidad, "mujer", identity)))
+cat(sprintf("- **Rubro:** el retorno de la educación va %s.\n", rango(por_rubro, "anios_educ", identity)))
+cat(sprintf("- **Grupos de departamentos:** el *k-means* separa %d grupos con perfiles laborales distintos; el retorno de la educación va %s.\n",
+  grupos$k, rango(por_grupo, "anios_educ", identity)))
+cat(sprintf("- **Predicción:** un modelo por segmento cambia el R² entre %+.3f y %+.3f; %s.\n",
+  min(mr$mejora), max(mr$mejora),
+  if (max(abs(mr$mejora)) < 0.01) "son diferencias mínimas: para predecir basta un modelo nacional que incluya la región, aunque los efectos de las predictoras sí difieren entre segmentos (secciones 8.1 a 8.6)"
+  else if (mean(mr$mejora) > 0) "en promedio conviene modelar cada segmento por separado"
+  else "en promedio el modelo nacional predice igual o mejor, porque ya incluye la región y usa más datos"))
+```

@@ -20,9 +20,11 @@ Universidad Nacional del Altiplano – Puno · Escuela Profesional de Ingenierí
 ├── 04-modelado.qmd           regresión multivariada, lineal, Elastic Net y Random Forest
 ├── 05-validacion.qmd         RMSE, R², MAE; validación cruzada y prueba
 ├── 06-interpretabilidad.qmd  coeficientes, Pillai e importancia de variables
-├── 07-mlops.qmd              registro y versiones de modelos (vetiver), API, monitoreo
-├── 08-despliegue.qmd         carga en PostgreSQL
-├── 09-disponibilidad-datos.qmd  GitHub (código) y Zenodo (datos, DOI)
+├── 07-heckman.qmd            modelo bietápico de Heckman (sesgo de selección)
+├── 08-regiones.qmd           heterogeneidad: región, departamento, formalidad, rubro, clusters
+├── 09-mlops.qmd              registro y versiones de modelos (vetiver), API, monitoreo
+├── 10-despliegue.qmd         carga en PostgreSQL
+├── 11-disponibilidad-datos.qmd  GitHub (código) y Zenodo (datos, DOI)
 ├── dashboard.qmd             tablero de resultados
 ├── R/                        funciones del pipeline
 ├── datos/                    raw / interim / processed (no se suben a GitHub)
@@ -81,3 +83,7 @@ PGDATABASE=enaho
 - **Datos:** Zenodo, DOI `10.5281/zenodo.24377138` (completar al publicar).
 - **Código:** este repositorio; versión archivada en Zenodo con DOI `10.5281/zenodo.24377368`.
 - **Fuente original:** INEI, Encuesta Nacional de Hogares 2014–2025.
+
+## Licencia
+
+Código: MIT. Datos procesados: CC BY 4.0 (citar también al INEI como fuente original).

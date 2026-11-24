@@ -1,0 +1,7 @@
+variable,efecto_marginal
+n_menores6 (hombres),0.024010219469007076
+n_menores6 (mujeres),-0.022953292807725238
+n_mayores65,-0.0014287091664206492
+casado_conviviente,-0.053384009175072494
+jefe_hogar,0.02237926549809225
+tam_hogar,0.001913022582883416

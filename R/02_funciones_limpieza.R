@@ -9,7 +9,8 @@ columnas_modelo <- c("anio", "conglome", "vivienda", "hogar", "codperso", "fac50
                      "ocu500", "p507", "i524a1", "p513t", "p207", "p208a",
                      "p301a", "p301b", "p301c", "p300a", "p558c", "p209", "p203",
                      "estrato", "dominio", "p510", "p511a", "p512a",
-                     "p558a1", "p558a2", "p558a3", "p558a4", "p558a5", "p505r4", "p506r4")
+                     "p558a1", "p558a2", "p558a3", "p558a4", "p558a5", "p505r4", "p506r4",
+                     "ubigeo", "ocupinf")   # contexto: departamento y empleo informal
 
 # Lee la base unida de todos los años (solo las columnas del modelo)
 leer_base_unida <- function() {

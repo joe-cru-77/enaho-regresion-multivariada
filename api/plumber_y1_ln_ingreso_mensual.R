@@ -13,7 +13,7 @@ if (FALSE) {
     library(workflows)
 }
 b <- board_folder(path = "C:/Users/Usuario.DESKTOP-9TDTEDC/Downloads/enaho-regresion-multivariada/outputs/modelos/registro")
-v <- vetiver_pin_read(b, "enaho_y1_ln_ingreso_mensual", version = "20261119T163939Z-57ab4")
+v <- vetiver_pin_read(b, "enaho_y1_ln_ingreso_mensual", version = "20261124T021622Z-9938a")
 
 #* @plumber
 function(pr) {

@@ -1,5 +1,5 @@
 ---
-title: "7. MLOps"
+title: "9. MLOps"
 description: "Registro y versionado de modelos, API de predicción, monitoreo del desempeño y automatización"
 ---
 
@@ -24,7 +24,7 @@ suppressPackageStartupMessages({
 | Despliegue | El modelo se publica como una API y los resultados se guardan en PostgreSQL | `vetiver` + `plumber`, PostgreSQL |
 | Monitoreo | Se mide el desempeño del modelo año por año para detectar si se deteriora | `vetiver_compute_metrics()` |
 
-## 7.1 Modelo final por variable objetivo
+## 9.1 Modelo final por variable objetivo
 
 Se despliega, para cada variable objetivo, el modelo con menor RMSE en el conjunto de prueba (ver [Validación](05-validacion.qmd)).
 
@@ -43,7 +43,7 @@ ajustes <- map(set_names(objetivos), function(obj) {
 mejores
 ```
 
-## 7.2 Registro y versionado de modelos
+## 9.2 Registro y versionado de modelos
 
 Cada modelo se guarda en un **registro** (`outputs/modelos/registro/`) con su versión y sus metadatos: el tipo de modelo, las métricas de prueba, la semilla y la fecha. Cada vez que se vuelve a entrenar se crea una versión nueva y las anteriores se conservan, así se puede volver a cualquiera de ellas.
 
@@ -72,7 +72,7 @@ guardar_tabla(versiones, "registro_versiones_modelos")
 versiones
 ```
 
-## 7.3 Despliegue del modelo como API
+## 9.3 Despliegue del modelo como API
 
 `vetiver` genera automáticamente una **API REST** con `plumber`. Otra aplicación (por ejemplo, un sistema web) puede enviarle los datos de una persona y recibir la predicción de su ingreso o de sus horas.
 
@@ -93,7 +93,7 @@ plumber::pr("api/plumber_y1_ln_ingreso_mensual.R") |> plumber::pr_run(port = 800
 # Documentación interactiva: http://127.0.0.1:8000/__docs__/
 ```
 
-## 7.4 Monitoreo del desempeño por año
+## 9.4 Monitoreo del desempeño por año
 
 En producción, un modelo puede perder precisión con el tiempo si cambian las condiciones del mercado laboral (*data drift*). Aquí se simula ese monitoreo midiendo el desempeño en el conjunto de prueba **año por año**.
 
@@ -128,7 +128,7 @@ monitoreo %>%
 
 Si en un año el RMSE sube o el R² baja mucho respecto a los demás, el modelo debe revisarse o reentrenarse con datos nuevos. 2020 aparece en naranja porque la encuesta se aplicó en parte por teléfono durante la pandemia.
 
-## 7.5 Automatización con GitHub Actions (CI/CD)
+## 9.5 Automatización con GitHub Actions (CI/CD)
 
 El archivo `.github/workflows/publicar.yml` publica el sitio en **GitHub Pages** cada vez que se sube un cambio a la rama `main`. Gracias a `freeze: auto`, GitHub reutiliza los resultados guardados en `_freeze/` y no necesita los datos ni volver a entrenar los modelos.
 
@@ -147,7 +147,7 @@ jobs:
           target: gh-pages
 ```
 
-## 7.6 Ciclo completo
+## 9.6 Ciclo completo
 
 ```{mermaid}
 flowchart LR

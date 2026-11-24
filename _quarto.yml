@@ -9,9 +9,11 @@ project:
     - 04-modelado.qmd
     - 05-validacion.qmd
     - 06-interpretabilidad.qmd
-    - 07-mlops.qmd
-    - 08-despliegue.qmd
-    - 09-disponibilidad-datos.qmd
+    - 07-heckman.qmd
+    - 08-regiones.qmd
+    - 09-mlops.qmd
+    - 10-despliegue.qmd
+    - 11-disponibilidad-datos.qmd
     - dashboard.qmd
 
 execute:
@@ -50,14 +52,20 @@ website:
             text: "5. Validación"
           - href: 06-interpretabilidad.qmd
             text: "6. Interpretabilidad"
+      - section: "Análisis econométrico"
+        contents:
+          - href: 07-heckman.qmd
+            text: "7. Heckman bietápico"
+          - href: 08-regiones.qmd
+            text: "8. Heterogeneidad"
       - section: "MLOps y datos abiertos"
         contents:
-          - href: 07-mlops.qmd
-            text: "7. MLOps"
-          - href: 08-despliegue.qmd
-            text: "8. Despliegue"
-          - href: 09-disponibilidad-datos.qmd
-            text: "9. Disponibilidad de datos"
+          - href: 09-mlops.qmd
+            text: "9. MLOps"
+          - href: 10-despliegue.qmd
+            text: "10. Despliegue"
+          - href: 11-disponibilidad-datos.qmd
+            text: "11. Disponibilidad de datos"
       - text: "Dashboard"
         href: dashboard.qmd
   page-footer:

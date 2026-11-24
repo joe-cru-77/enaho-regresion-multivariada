@@ -33,7 +33,7 @@ base_modelo %>%
   summarise(across(all_of(objetivos),
                    list(media = mean, mediana = median, de = sd, min = min, max = max))) %>%
   pivot_longer(everything(), names_to = c("variable", ".value"),
-               names_pattern = "(y[12]_.*)_(media|mediana|de|min|max)") %>%
+               names_pattern = "^(y[12]_.*)_(mediana|media|de|min|max)$") %>%
   mutate(across(where(is.numeric), ~ round(.x, 2)))
 ```
 

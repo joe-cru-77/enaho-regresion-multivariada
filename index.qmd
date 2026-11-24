@@ -17,7 +17,9 @@ date: today
 | **Validación** | Validación cruzada y conjunto de prueba con RMSE, R² y MAE: [5. Validación](05-validacion.qmd) |
 | **Interpretabilidad** | Coeficientes, prueba de Pillai e importancia de variables: [6. Interpretabilidad](06-interpretabilidad.qmd) |
 | **Reproducibilidad** | Quarto, rutas relativas, semilla fija, `renv`, `freeze`, datos con DOI: `LISTA_REPRODUCIBILIDAD.md` |
-| **MLOps** | Registro y versiones de modelos, API, monitoreo y GitHub Actions: [7. MLOps](07-mlops.qmd) |
+| **Corrección del sesgo de selección** | Modelo bietápico de Heckman (probit + regresión multivariada con la razón inversa de Mills): [7. Heckman](07-heckman.qmd) |
+| **Heterogeneidad del mercado laboral** | Región natural, departamento (foco en Puno), empleo formal/informal, rubro y grupos de departamentos (*k-means*), con factores de expansión: [8. Heterogeneidad](08-regiones.qmd) |
+| **MLOps** | Registro y versiones de modelos, API, monitoreo y GitHub Actions: [9. MLOps](09-mlops.qmd) |
 
 ## Objetivo
 
@@ -42,11 +44,15 @@ flowchart LR
   E --> G["4. Modelado<br/>tidymodels"]
   G --> H["5. Validación<br/>métricas"]
   G --> I["6. Interpretabilidad"]
+  C --> P["7. Heckman bietápico<br/>probit de selección + λ"]
+  E --> P
+  P --> Q["8. Heterogeneidad<br/>región, departamento,<br/>formalidad, rubro, clusters"]
   H --> J["Dashboard"]
   I --> J
-  H --> N["7. MLOps<br/>registro, API, monitoreo"]
-  N --> K["8. Despliegue<br/>PostgreSQL"]
-  E --> L["9. Datos abiertos<br/>Zenodo (DOI)"]
+  Q --> J
+  H --> N["9. MLOps<br/>registro, API, monitoreo"]
+  N --> K["10. Despliegue<br/>PostgreSQL"]
+  E --> L["11. Datos abiertos<br/>Zenodo (DOI)"]
   N --> M["Código<br/>GitHub + Actions"]
 ```
 
@@ -58,9 +64,11 @@ flowchart LR
 | 4. Modelado | `04-modelado.qmd` | `base_modelo` | `outputs/` (métricas, predicciones, coeficientes) |
 | 5. Validación | `05-validacion.qmd` | `outputs/` | comparación de modelos |
 | 6. Interpretabilidad | `06-interpretabilidad.qmd` | `outputs/` | efectos e importancia de variables |
-| 7. MLOps | `07-mlops.qmd` | `base_modelo`, mejor modelo | registro de modelos con versiones, API, monitoreo por año |
-| 8. Despliegue | `08-despliegue.qmd` | `base_modelo`, `outputs/` | tablas en PostgreSQL |
-| 9. Disponibilidad de datos | `09-disponibilidad-datos.qmd` | — | GitHub (código) y Zenodo (datos, DOI) |
+| 7. Heckman bietápico | `07-heckman.qmd` | `datos/interim/`, `base_modelo` | `base_seleccion.csv.gz`, λ, coeficientes corregidos |
+| 8. Heterogeneidad | `08-regiones.qmd` | `base_modelo`, λ, `datos/interim/` | `base_contexto.csv.gz`, resultados ponderados, efectos y modelos por segmento |
+| 9. MLOps | `09-mlops.qmd` | `base_modelo`, mejor modelo | registro de modelos con versiones, API, monitoreo por año |
+| 10. Despliegue | `10-despliegue.qmd` | `base_modelo`, `outputs/` | tablas en PostgreSQL |
+| 11. Disponibilidad de datos | `11-disponibilidad-datos.qmd` | — | GitHub (código) y Zenodo (datos, DOI) |
 | Dashboard | `dashboard.qmd` | `outputs/` | tablero de resultados |
 
 ## Estructura de carpetas
@@ -68,13 +76,15 @@ flowchart LR
 ```
 enaho-regresion-multivariada/
 ├── _quarto.yml               configuración del proyecto Quarto
-├── index.qmd ... 09-*.qmd    etapas del pipeline
+├── index.qmd ... 11-*.qmd    etapas del pipeline
 ├── dashboard.qmd             tablero de resultados
 ├── R/                        funciones reutilizables
 │   ├── 00_config.R           rutas, semilla y parámetros
 │   ├── 01_funciones_integracion.R
 │   ├── 02_funciones_limpieza.R
 │   ├── 03_funciones_modelado.R
+│   ├── 04_funciones_econometria.R
+│   ├── 05_funciones_segmentacion.R
 │   └── instalar_paquetes.R
 ├── datos/
 │   ├── raw/                  CSV originales del INEI   (no se suben a GitHub)
@@ -96,5 +106,5 @@ enaho-regresion-multivariada/
 2. Instalar los paquetes: `source("R/instalar_paquetes.R")` o, mejor, `renv::restore()` para obtener las mismas versiones.
 3. Obtener los datos, de una de estas dos formas:
    - **Desde cero:** descargar los módulos 200, 300 y 500 de 2014 a 2025 del portal de microdatos del INEI y copiarlos en `datos/raw/`.
-   - **Directo al modelo:** descargar `base_modelo.csv.gz` desde Zenodo (ver [Disponibilidad de datos](09-disponibilidad-datos.qmd)) y copiarlo en `datos/processed/`. Las etapas 1 y 2 se saltan solas.
+   - **Directo al modelo:** descargar `base_modelo.csv.gz` desde Zenodo (ver [Disponibilidad de datos](11-disponibilidad-datos.qmd)) y copiarlo en `datos/processed/`. Las etapas 1 y 2 se saltan solas.
 4. En la terminal, dentro de la carpeta del proyecto: `quarto render`.

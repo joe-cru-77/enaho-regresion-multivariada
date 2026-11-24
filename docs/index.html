@@ -216,25 +216,45 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
             <button type="button" class="sidebar-item-text sidebar-item-toggle sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" aria-controls="quarto-sidebar-section-3" aria-expanded="true">
- <span class="menu-text" id="quarto-sidebar-section-3-label">MLOps y datos abiertos</span><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
+ <span class="menu-text" id="quarto-sidebar-section-3-label">Análisis econométrico</span><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
       </div>
       <ul id="quarto-sidebar-section-3" aria-labelledby="quarto-sidebar-section-3-label" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./07-mlops.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">7. MLOps</span></a>
+  <a href="./07-heckman.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">7. Heckman bietápico</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./08-despliegue.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">8. Despliegue</span></a>
+  <a href="./08-regiones.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">8. Heterogeneidad</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <button type="button" class="sidebar-item-text sidebar-item-toggle sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" aria-controls="quarto-sidebar-section-4" aria-expanded="true">
+ <span class="menu-text" id="quarto-sidebar-section-4-label">MLOps y datos abiertos</span><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
+      </div>
+      <ul id="quarto-sidebar-section-4" aria-labelledby="quarto-sidebar-section-4-label" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./09-mlops.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">9. MLOps</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./09-disponibilidad-datos.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">9. Disponibilidad de datos</span></a>
+  <a href="./10-despliegue.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">10. Despliegue</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./11-disponibilidad-datos.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">11. Disponibilidad de datos</span></a>
   </div>
 </li>
       </ul>
@@ -289,7 +309,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <div>
     <div class="quarto-title-meta-heading">Fecha de publicación</div>
     <div class="quarto-title-meta-contents">
-      <p class="date">19 de noviembre de 2026</p>
+      <p class="date">23 de noviembre de 2026</p>
     </div>
   </div>
   
@@ -328,8 +348,16 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td>Quarto, rutas relativas, semilla fija, <code>renv</code>, <code>freeze</code>, datos con DOI: <code>LISTA_REPRODUCIBILIDAD.md</code></td>
 </tr>
 <tr class="odd">
+<td><strong>Corrección del sesgo de selección</strong></td>
+<td>Modelo bietápico de Heckman (probit + regresión multivariada con la razón inversa de Mills): <a href="./07-heckman.html">7. Heckman</a></td>
+</tr>
+<tr class="even">
+<td><strong>Heterogeneidad del mercado laboral</strong></td>
+<td>Región natural, departamento (foco en Puno), empleo formal/informal, rubro y grupos de departamentos (<em>k-means</em>), con factores de expansión: <a href="./08-regiones.html">8. Heterogeneidad</a></td>
+</tr>
+<tr class="odd">
 <td><strong>MLOps</strong></td>
-<td>Registro y versiones de modelos, API, monitoreo y GitHub Actions: <a href="./07-mlops.html">7. MLOps</a></td>
+<td>Registro y versiones de modelos, API, monitoreo y GitHub Actions: <a href="./09-mlops.html">9. MLOps</a></td>
 </tr>
 </tbody>
 </table>
@@ -358,12 +386,16 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>  E --&gt; G["4. Modelado&lt;br/&gt;tidymodels"]</span>
 <span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>  G --&gt; H["5. Validación&lt;br/&gt;métricas"]</span>
 <span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>  G --&gt; I["6. Interpretabilidad"]</span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>  H --&gt; J["Dashboard"]</span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>  I --&gt; J</span>
-<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>  H --&gt; N["7. MLOps&lt;br/&gt;registro, API, monitoreo"]</span>
-<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>  N --&gt; K["8. Despliegue&lt;br/&gt;PostgreSQL"]</span>
-<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>  E --&gt; L["9. Datos abiertos&lt;br/&gt;Zenodo (DOI)"]</span>
-<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>  N --&gt; M["Código&lt;br/&gt;GitHub + Actions"]</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>  C --&gt; P["7. Heckman bietápico&lt;br/&gt;probit de selección + λ"]</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>  E --&gt; P</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>  P --&gt; Q["8. Heterogeneidad&lt;br/&gt;región, departamento,&lt;br/&gt;formalidad, rubro, clusters"]</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>  H --&gt; J["Dashboard"]</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>  I --&gt; J</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>  Q --&gt; J</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>  H --&gt; N["9. MLOps&lt;br/&gt;registro, API, monitoreo"]</span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>  N --&gt; K["10. Despliegue&lt;br/&gt;PostgreSQL"]</span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>  E --&gt; L["11. Datos abiertos&lt;br/&gt;Zenodo (DOI)"]</span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>  N --&gt; M["Código&lt;br/&gt;GitHub + Actions"]</span></code></pre></div><button title="Copiar al portapapeles" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 <div class="cell-output-display">
 <div>
@@ -379,11 +411,15 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   E --&gt; G["4. Modelado&lt;br/&gt;tidymodels"]
   G --&gt; H["5. Validación&lt;br/&gt;métricas"]
   G --&gt; I["6. Interpretabilidad"]
+  C --&gt; P["7. Heckman bietápico&lt;br/&gt;probit de selección + λ"]
+  E --&gt; P
+  P --&gt; Q["8. Heterogeneidad&lt;br/&gt;región, departamento,&lt;br/&gt;formalidad, rubro, clusters"]
   H --&gt; J["Dashboard"]
   I --&gt; J
-  H --&gt; N["7. MLOps&lt;br/&gt;registro, API, monitoreo"]
-  N --&gt; K["8. Despliegue&lt;br/&gt;PostgreSQL"]
-  E --&gt; L["9. Datos abiertos&lt;br/&gt;Zenodo (DOI)"]
+  Q --&gt; J
+  H --&gt; N["9. MLOps&lt;br/&gt;registro, API, monitoreo"]
+  N --&gt; K["10. Despliegue&lt;br/&gt;PostgreSQL"]
+  E --&gt; L["11. Datos abiertos&lt;br/&gt;Zenodo (DOI)"]
   N --&gt; M["Código&lt;br/&gt;GitHub + Actions"]
 </pre>
 </div>
@@ -444,20 +480,32 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td>efectos e importancia de variables</td>
 </tr>
 <tr class="odd">
-<td>7. MLOps</td>
-<td><code>07-mlops.qmd</code></td>
+<td>7. Heckman bietápico</td>
+<td><code>07-heckman.qmd</code></td>
+<td><code>datos/interim/</code>, <code>base_modelo</code></td>
+<td><code>base_seleccion.csv.gz</code>, λ, coeficientes corregidos</td>
+</tr>
+<tr class="even">
+<td>8. Heterogeneidad</td>
+<td><code>08-regiones.qmd</code></td>
+<td><code>base_modelo</code>, λ, <code>datos/interim/</code></td>
+<td><code>base_contexto.csv.gz</code>, resultados ponderados, efectos y modelos por segmento</td>
+</tr>
+<tr class="odd">
+<td>9. MLOps</td>
+<td><code>09-mlops.qmd</code></td>
 <td><code>base_modelo</code>, mejor modelo</td>
 <td>registro de modelos con versiones, API, monitoreo por año</td>
 </tr>
 <tr class="even">
-<td>8. Despliegue</td>
-<td><code>08-despliegue.qmd</code></td>
+<td>10. Despliegue</td>
+<td><code>10-despliegue.qmd</code></td>
 <td><code>base_modelo</code>, <code>outputs/</code></td>
 <td>tablas en PostgreSQL</td>
 </tr>
 <tr class="odd">
-<td>9. Disponibilidad de datos</td>
-<td><code>09-disponibilidad-datos.qmd</code></td>
+<td>11. Disponibilidad de datos</td>
+<td><code>11-disponibilidad-datos.qmd</code></td>
 <td>—</td>
 <td>GitHub (código) y Zenodo (datos, DOI)</td>
 </tr>
@@ -474,13 +522,15 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h2 class="anchored" data-anchor-id="estructura-de-carpetas">Estructura de carpetas</h2>
 <pre><code>enaho-regresion-multivariada/
 ├── _quarto.yml               configuración del proyecto Quarto
-├── index.qmd ... 09-*.qmd    etapas del pipeline
+├── index.qmd ... 11-*.qmd    etapas del pipeline
 ├── dashboard.qmd             tablero de resultados
 ├── R/                        funciones reutilizables
 │   ├── 00_config.R           rutas, semilla y parámetros
 │   ├── 01_funciones_integracion.R
 │   ├── 02_funciones_limpieza.R
 │   ├── 03_funciones_modelado.R
+│   ├── 04_funciones_econometria.R
+│   ├── 05_funciones_segmentacion.R
 │   └── instalar_paquetes.R
 ├── datos/
 │   ├── raw/                  CSV originales del INEI   (no se suben a GitHub)
@@ -503,7 +553,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li>Obtener los datos, de una de estas dos formas:
 <ul>
 <li><strong>Desde cero:</strong> descargar los módulos 200, 300 y 500 de 2014 a 2025 del portal de microdatos del INEI y copiarlos en <code>datos/raw/</code>.</li>
-<li><strong>Directo al modelo:</strong> descargar <code>base_modelo.csv.gz</code> desde Zenodo (ver <a href="./09-disponibilidad-datos.html">Disponibilidad de datos</a>) y copiarlo en <code>datos/processed/</code>. Las etapas 1 y 2 se saltan solas.</li>
+<li><strong>Directo al modelo:</strong> descargar <code>base_modelo.csv.gz</code> desde Zenodo (ver <a href="./11-disponibilidad-datos.html">Disponibilidad de datos</a>) y copiarlo en <code>datos/processed/</code>. Las etapas 1 y 2 se saltan solas.</li>
 </ul></li>
 <li>En la terminal, dentro de la carpeta del proyecto: <code>quarto render</code>.</li>
 </ol>
@@ -1060,87 +1110,97 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Validación** <span class="pp">|</span> Validación cruzada y conjunto de prueba con RMSE, R² y MAE: <span class="co">[</span><span class="ot">5. Validación</span><span class="co">](05-validacion.qmd)</span> <span class="pp">|</span></span>
 <span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Interpretabilidad** <span class="pp">|</span> Coeficientes, prueba de Pillai e importancia de variables: <span class="co">[</span><span class="ot">6. Interpretabilidad</span><span class="co">](06-interpretabilidad.qmd)</span> <span class="pp">|</span></span>
 <span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Reproducibilidad** <span class="pp">|</span> Quarto, rutas relativas, semilla fija, <span class="in">`renv`</span>, <span class="in">`freeze`</span>, datos con DOI: <span class="in">`LISTA_REPRODUCIBILIDAD.md`</span> <span class="pp">|</span></span>
-<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **MLOps** <span class="pp">|</span> Registro y versiones de modelos, API, monitoreo y GitHub Actions: <span class="co">[</span><span class="ot">7. MLOps</span><span class="co">](07-mlops.qmd)</span> <span class="pp">|</span></span>
-<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a><span class="fu">## Objetivo</span></span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Corrección del sesgo de selección** <span class="pp">|</span> Modelo bietápico de Heckman (probit + regresión multivariada con la razón inversa de Mills): <span class="co">[</span><span class="ot">7. Heckman</span><span class="co">](07-heckman.qmd)</span> <span class="pp">|</span></span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **Heterogeneidad del mercado laboral** <span class="pp">|</span> Región natural, departamento (foco en Puno), empleo formal/informal, rubro y grupos de departamentos (*k-means*), con factores de expansión: <span class="co">[</span><span class="ot">8. Heterogeneidad</span><span class="co">](08-regiones.qmd)</span> <span class="pp">|</span></span>
+<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> **MLOps** <span class="pp">|</span> Registro y versiones de modelos, API, monitoreo y GitHub Actions: <span class="co">[</span><span class="ot">9. MLOps</span><span class="co">](09-mlops.qmd)</span> <span class="pp">|</span></span>
 <span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a>Estimar, con datos de la Encuesta Nacional de Hogares (ENAHO) 2014–2025, una **regresión multivariada** que explique a la vez dos resultados del mercado laboral de los asalariados en el Perú:</span>
+<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a><span class="fu">## Objetivo</span></span>
 <span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Y1:** logaritmo del ingreso mensual de la ocupación principal.</span>
-<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Y2:** horas trabajadas a la semana en la ocupación principal.</span>
-<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-29"><a href="#cb3-29" aria-hidden="true" tabindex="-1"></a>Para ello se usan **19 predictoras** (características personales, del hogar, de la ubicación y del empleo) y se comparan varios modelos predictivos con métricas de validación.</span>
+<span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a>Estimar, con datos de la Encuesta Nacional de Hogares (ENAHO) 2014–2025, una **regresión multivariada** que explique a la vez dos resultados del mercado laboral de los asalariados en el Perú:</span>
+<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Y1:** logaritmo del ingreso mensual de la ocupación principal.</span>
+<span id="cb3-29"><a href="#cb3-29" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Y2:** horas trabajadas a la semana en la ocupación principal.</span>
 <span id="cb3-30"><a href="#cb3-30" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-31"><a href="#cb3-31" aria-hidden="true" tabindex="-1"></a><span class="fu">## Arquitectura del pipeline</span></span>
+<span id="cb3-31"><a href="#cb3-31" aria-hidden="true" tabindex="-1"></a>Para ello se usan **19 predictoras** (características personales, del hogar, de la ubicación y del empleo) y se comparan varios modelos predictivos con métricas de validación.</span>
 <span id="cb3-32"><a href="#cb3-32" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-33"><a href="#cb3-33" aria-hidden="true" tabindex="-1"></a>Este proyecto Quarto es la **arquitectura local** del pipeline: cada etapa es una página que lee lo que dejó la anterior y guarda sus resultados en disco. Así el trabajo se puede reproducir de punta a punta con un solo comando (<span class="in">`quarto render`</span>).</span>
+<span id="cb3-33"><a href="#cb3-33" aria-hidden="true" tabindex="-1"></a><span class="fu">## Arquitectura del pipeline</span></span>
 <span id="cb3-34"><a href="#cb3-34" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-37"><a href="#cb3-37" aria-hidden="true" tabindex="-1"></a><span class="in">```{mermaid}</span></span>
-<span id="cb3-38"><a href="#cb3-38" aria-hidden="true" tabindex="-1"></a>flowchart LR</span>
-<span id="cb3-39"><a href="#cb3-39" aria-hidden="true" tabindex="-1"></a>  A[(<span class="ot">"</span><span class="st">CSV del INEI&lt;br/&gt;módulos 200, 300, 500&lt;br/&gt;2014–2025</span><span class="ot">"</span>)] --&gt; B[<span class="ot">"</span><span class="st">1. Integración&lt;br/&gt;inventario y unión</span><span class="ot">"</span>]</span>
-<span id="cb3-40"><a href="#cb3-40" aria-hidden="true" tabindex="-1"></a>  B --&gt; C[(<span class="ot">"</span><span class="st">datos/interim&lt;br/&gt;base unida por año</span><span class="ot">"</span>)]</span>
-<span id="cb3-41"><a href="#cb3-41" aria-hidden="true" tabindex="-1"></a>  C --&gt; D[<span class="ot">"</span><span class="st">2. Limpieza&lt;br/&gt;faltantes y recodificación</span><span class="ot">"</span>]</span>
-<span id="cb3-42"><a href="#cb3-42" aria-hidden="true" tabindex="-1"></a>  D --&gt; E[(<span class="ot">"</span><span class="st">datos/processed&lt;br/&gt;base_modelo.csv.gz</span><span class="ot">"</span>)]</span>
-<span id="cb3-43"><a href="#cb3-43" aria-hidden="true" tabindex="-1"></a>  E --&gt; F[<span class="ot">"</span><span class="st">3. Exploración</span><span class="ot">"</span>]</span>
-<span id="cb3-44"><a href="#cb3-44" aria-hidden="true" tabindex="-1"></a>  E --&gt; G[<span class="ot">"</span><span class="st">4. Modelado&lt;br/&gt;tidymodels</span><span class="ot">"</span>]</span>
-<span id="cb3-45"><a href="#cb3-45" aria-hidden="true" tabindex="-1"></a>  G --&gt; H[<span class="ot">"</span><span class="st">5. Validación&lt;br/&gt;métricas</span><span class="ot">"</span>]</span>
-<span id="cb3-46"><a href="#cb3-46" aria-hidden="true" tabindex="-1"></a>  G --&gt; I[<span class="ot">"</span><span class="st">6. Interpretabilidad</span><span class="ot">"</span>]</span>
-<span id="cb3-47"><a href="#cb3-47" aria-hidden="true" tabindex="-1"></a>  H --&gt; J[<span class="ot">"</span><span class="st">Dashboard</span><span class="ot">"</span>]</span>
-<span id="cb3-48"><a href="#cb3-48" aria-hidden="true" tabindex="-1"></a>  I --&gt; J</span>
-<span id="cb3-49"><a href="#cb3-49" aria-hidden="true" tabindex="-1"></a>  H --&gt; N[<span class="ot">"</span><span class="st">7. MLOps&lt;br/&gt;registro, API, monitoreo</span><span class="ot">"</span>]</span>
-<span id="cb3-50"><a href="#cb3-50" aria-hidden="true" tabindex="-1"></a>  N --&gt; K[<span class="ot">"</span><span class="st">8. Despliegue&lt;br/&gt;PostgreSQL</span><span class="ot">"</span>]</span>
-<span id="cb3-51"><a href="#cb3-51" aria-hidden="true" tabindex="-1"></a>  E --&gt; L[<span class="ot">"</span><span class="st">9. Datos abiertos&lt;br/&gt;Zenodo (DOI)</span><span class="ot">"</span>]</span>
-<span id="cb3-52"><a href="#cb3-52" aria-hidden="true" tabindex="-1"></a>  N --&gt; M[<span class="ot">"</span><span class="st">Código&lt;br/&gt;GitHub + Actions</span><span class="ot">"</span>]</span>
-<span id="cb3-53"><a href="#cb3-53" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb3-54"><a href="#cb3-54" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-55"><a href="#cb3-55" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Etapa <span class="pp">|</span> Página <span class="pp">|</span> Entrada <span class="pp">|</span> Salida <span class="pp">|</span></span>
-<span id="cb3-56"><a href="#cb3-56" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---|---|---|</span></span>
-<span id="cb3-57"><a href="#cb3-57" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 1. Integración <span class="pp">|</span> <span class="in">`01-integracion.qmd`</span> <span class="pp">|</span> <span class="in">`datos/raw/`</span> (CSV del INEI) <span class="pp">|</span> <span class="in">`datos/interim/enaho_unida_AAAA.rds`</span> <span class="pp">|</span></span>
-<span id="cb3-58"><a href="#cb3-58" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 2. Limpieza <span class="pp">|</span> <span class="in">`02-limpieza.qmd`</span> <span class="pp">|</span> <span class="in">`datos/interim/`</span> <span class="pp">|</span> <span class="in">`datos/processed/base_modelo.csv.gz`</span> <span class="pp">|</span></span>
-<span id="cb3-59"><a href="#cb3-59" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 3. Exploración <span class="pp">|</span> <span class="in">`03-exploracion.qmd`</span> <span class="pp">|</span> <span class="in">`base_modelo`</span> <span class="pp">|</span> gráficos descriptivos <span class="pp">|</span></span>
-<span id="cb3-60"><a href="#cb3-60" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 4. Modelado <span class="pp">|</span> <span class="in">`04-modelado.qmd`</span> <span class="pp">|</span> <span class="in">`base_modelo`</span> <span class="pp">|</span> <span class="in">`outputs/`</span> (métricas, predicciones, coeficientes) <span class="pp">|</span></span>
-<span id="cb3-61"><a href="#cb3-61" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 5. Validación <span class="pp">|</span> <span class="in">`05-validacion.qmd`</span> <span class="pp">|</span> <span class="in">`outputs/`</span> <span class="pp">|</span> comparación de modelos <span class="pp">|</span></span>
-<span id="cb3-62"><a href="#cb3-62" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 6. Interpretabilidad <span class="pp">|</span> <span class="in">`06-interpretabilidad.qmd`</span> <span class="pp">|</span> <span class="in">`outputs/`</span> <span class="pp">|</span> efectos e importancia de variables <span class="pp">|</span></span>
-<span id="cb3-63"><a href="#cb3-63" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 7. MLOps <span class="pp">|</span> <span class="in">`07-mlops.qmd`</span> <span class="pp">|</span> <span class="in">`base_modelo`</span>, mejor modelo <span class="pp">|</span> registro de modelos con versiones, API, monitoreo por año <span class="pp">|</span></span>
-<span id="cb3-64"><a href="#cb3-64" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 8. Despliegue <span class="pp">|</span> <span class="in">`08-despliegue.qmd`</span> <span class="pp">|</span> <span class="in">`base_modelo`</span>, <span class="in">`outputs/`</span> <span class="pp">|</span> tablas en PostgreSQL <span class="pp">|</span></span>
-<span id="cb3-65"><a href="#cb3-65" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 9. Disponibilidad de datos <span class="pp">|</span> <span class="in">`09-disponibilidad-datos.qmd`</span> <span class="pp">|</span> — <span class="pp">|</span> GitHub (código) y Zenodo (datos, DOI) <span class="pp">|</span></span>
-<span id="cb3-66"><a href="#cb3-66" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Dashboard <span class="pp">|</span> <span class="in">`dashboard.qmd`</span> <span class="pp">|</span> <span class="in">`outputs/`</span> <span class="pp">|</span> tablero de resultados <span class="pp">|</span></span>
-<span id="cb3-67"><a href="#cb3-67" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-68"><a href="#cb3-68" aria-hidden="true" tabindex="-1"></a><span class="fu">## Estructura de carpetas</span></span>
-<span id="cb3-69"><a href="#cb3-69" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-70"><a href="#cb3-70" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb3-71"><a href="#cb3-71" aria-hidden="true" tabindex="-1"></a><span class="in">enaho-regresion-multivariada/</span></span>
-<span id="cb3-72"><a href="#cb3-72" aria-hidden="true" tabindex="-1"></a><span class="in">├── _quarto.yml               configuración del proyecto Quarto</span></span>
-<span id="cb3-73"><a href="#cb3-73" aria-hidden="true" tabindex="-1"></a><span class="in">├── index.qmd ... 09-*.qmd    etapas del pipeline</span></span>
-<span id="cb3-74"><a href="#cb3-74" aria-hidden="true" tabindex="-1"></a><span class="in">├── dashboard.qmd             tablero de resultados</span></span>
-<span id="cb3-75"><a href="#cb3-75" aria-hidden="true" tabindex="-1"></a><span class="in">├── R/                        funciones reutilizables</span></span>
-<span id="cb3-76"><a href="#cb3-76" aria-hidden="true" tabindex="-1"></a><span class="in">│   ├── 00_config.R           rutas, semilla y parámetros</span></span>
-<span id="cb3-77"><a href="#cb3-77" aria-hidden="true" tabindex="-1"></a><span class="in">│   ├── 01_funciones_integracion.R</span></span>
-<span id="cb3-78"><a href="#cb3-78" aria-hidden="true" tabindex="-1"></a><span class="in">│   ├── 02_funciones_limpieza.R</span></span>
-<span id="cb3-79"><a href="#cb3-79" aria-hidden="true" tabindex="-1"></a><span class="in">│   ├── 03_funciones_modelado.R</span></span>
-<span id="cb3-80"><a href="#cb3-80" aria-hidden="true" tabindex="-1"></a><span class="in">│   └── instalar_paquetes.R</span></span>
-<span id="cb3-81"><a href="#cb3-81" aria-hidden="true" tabindex="-1"></a><span class="in">├── datos/</span></span>
-<span id="cb3-82"><a href="#cb3-82" aria-hidden="true" tabindex="-1"></a><span class="in">│   ├── raw/                  CSV originales del INEI   (no se suben a GitHub)</span></span>
-<span id="cb3-83"><a href="#cb3-83" aria-hidden="true" tabindex="-1"></a><span class="in">│   ├── interim/              base unida por año        (no se sube a GitHub)</span></span>
-<span id="cb3-84"><a href="#cb3-84" aria-hidden="true" tabindex="-1"></a><span class="in">│   └── processed/            base_modelo               (se publica en Zenodo)</span></span>
-<span id="cb3-85"><a href="#cb3-85" aria-hidden="true" tabindex="-1"></a><span class="in">├── outputs/                  tablas, figuras y registro de modelos</span></span>
-<span id="cb3-86"><a href="#cb3-86" aria-hidden="true" tabindex="-1"></a><span class="in">├── api/                      APIs de predicción (plumber) generadas por vetiver</span></span>
-<span id="cb3-87"><a href="#cb3-87" aria-hidden="true" tabindex="-1"></a><span class="in">├── .github/workflows/        publicación automática (GitHub Actions)</span></span>
-<span id="cb3-88"><a href="#cb3-88" aria-hidden="true" tabindex="-1"></a><span class="in">├── imagenes/                 logo</span></span>
-<span id="cb3-89"><a href="#cb3-89" aria-hidden="true" tabindex="-1"></a><span class="in">├── docs/                     sitio web generado        (GitHub Pages)</span></span>
-<span id="cb3-90"><a href="#cb3-90" aria-hidden="true" tabindex="-1"></a><span class="in">├── README.md</span></span>
-<span id="cb3-91"><a href="#cb3-91" aria-hidden="true" tabindex="-1"></a><span class="in">├── LISTA_REPRODUCIBILIDAD.md</span></span>
-<span id="cb3-92"><a href="#cb3-92" aria-hidden="true" tabindex="-1"></a><span class="in">└── CITATION.cff</span></span>
-<span id="cb3-93"><a href="#cb3-93" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb3-94"><a href="#cb3-94" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-95"><a href="#cb3-95" aria-hidden="true" tabindex="-1"></a><span class="fu">## Cómo reproducir</span></span>
-<span id="cb3-96"><a href="#cb3-96" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-97"><a href="#cb3-97" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>Clonar el repositorio de GitHub.</span>
-<span id="cb3-98"><a href="#cb3-98" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>Instalar los paquetes: <span class="in">`source("R/instalar_paquetes.R")`</span> o, mejor, <span class="in">`renv::restore()`</span> para obtener las mismas versiones.</span>
-<span id="cb3-99"><a href="#cb3-99" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>Obtener los datos, de una de estas dos formas:</span>
-<span id="cb3-100"><a href="#cb3-100" aria-hidden="true" tabindex="-1"></a><span class="ss">   - </span>**Desde cero:** descargar los módulos 200, 300 y 500 de 2014 a 2025 del portal de microdatos del INEI y copiarlos en <span class="in">`datos/raw/`</span>.</span>
-<span id="cb3-101"><a href="#cb3-101" aria-hidden="true" tabindex="-1"></a><span class="ss">   - </span>**Directo al modelo:** descargar <span class="in">`base_modelo.csv.gz`</span> desde Zenodo (ver <span class="co">[</span><span class="ot">Disponibilidad de datos</span><span class="co">](09-disponibilidad-datos.qmd)</span>) y copiarlo en <span class="in">`datos/processed/`</span>. Las etapas 1 y 2 se saltan solas.</span>
-<span id="cb3-102"><a href="#cb3-102" aria-hidden="true" tabindex="-1"></a><span class="ss">4. </span>En la terminal, dentro de la carpeta del proyecto: <span class="in">`quarto render`</span>.</span>
+<span id="cb3-35"><a href="#cb3-35" aria-hidden="true" tabindex="-1"></a>Este proyecto Quarto es la **arquitectura local** del pipeline: cada etapa es una página que lee lo que dejó la anterior y guarda sus resultados en disco. Así el trabajo se puede reproducir de punta a punta con un solo comando (<span class="in">`quarto render`</span>).</span>
+<span id="cb3-36"><a href="#cb3-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-39"><a href="#cb3-39" aria-hidden="true" tabindex="-1"></a><span class="in">```{mermaid}</span></span>
+<span id="cb3-40"><a href="#cb3-40" aria-hidden="true" tabindex="-1"></a>flowchart LR</span>
+<span id="cb3-41"><a href="#cb3-41" aria-hidden="true" tabindex="-1"></a>  A[(<span class="ot">"</span><span class="st">CSV del INEI&lt;br/&gt;módulos 200, 300, 500&lt;br/&gt;2014–2025</span><span class="ot">"</span>)] --&gt; B[<span class="ot">"</span><span class="st">1. Integración&lt;br/&gt;inventario y unión</span><span class="ot">"</span>]</span>
+<span id="cb3-42"><a href="#cb3-42" aria-hidden="true" tabindex="-1"></a>  B --&gt; C[(<span class="ot">"</span><span class="st">datos/interim&lt;br/&gt;base unida por año</span><span class="ot">"</span>)]</span>
+<span id="cb3-43"><a href="#cb3-43" aria-hidden="true" tabindex="-1"></a>  C --&gt; D[<span class="ot">"</span><span class="st">2. Limpieza&lt;br/&gt;faltantes y recodificación</span><span class="ot">"</span>]</span>
+<span id="cb3-44"><a href="#cb3-44" aria-hidden="true" tabindex="-1"></a>  D --&gt; E[(<span class="ot">"</span><span class="st">datos/processed&lt;br/&gt;base_modelo.csv.gz</span><span class="ot">"</span>)]</span>
+<span id="cb3-45"><a href="#cb3-45" aria-hidden="true" tabindex="-1"></a>  E --&gt; F[<span class="ot">"</span><span class="st">3. Exploración</span><span class="ot">"</span>]</span>
+<span id="cb3-46"><a href="#cb3-46" aria-hidden="true" tabindex="-1"></a>  E --&gt; G[<span class="ot">"</span><span class="st">4. Modelado&lt;br/&gt;tidymodels</span><span class="ot">"</span>]</span>
+<span id="cb3-47"><a href="#cb3-47" aria-hidden="true" tabindex="-1"></a>  G --&gt; H[<span class="ot">"</span><span class="st">5. Validación&lt;br/&gt;métricas</span><span class="ot">"</span>]</span>
+<span id="cb3-48"><a href="#cb3-48" aria-hidden="true" tabindex="-1"></a>  G --&gt; I[<span class="ot">"</span><span class="st">6. Interpretabilidad</span><span class="ot">"</span>]</span>
+<span id="cb3-49"><a href="#cb3-49" aria-hidden="true" tabindex="-1"></a>  C --&gt; P[<span class="ot">"</span><span class="st">7. Heckman bietápico&lt;br/&gt;probit de selección + λ</span><span class="ot">"</span>]</span>
+<span id="cb3-50"><a href="#cb3-50" aria-hidden="true" tabindex="-1"></a>  E --&gt; P</span>
+<span id="cb3-51"><a href="#cb3-51" aria-hidden="true" tabindex="-1"></a>  P --&gt; Q[<span class="ot">"</span><span class="st">8. Heterogeneidad&lt;br/&gt;región, departamento,&lt;br/&gt;formalidad, rubro, clusters</span><span class="ot">"</span>]</span>
+<span id="cb3-52"><a href="#cb3-52" aria-hidden="true" tabindex="-1"></a>  H --&gt; J[<span class="ot">"</span><span class="st">Dashboard</span><span class="ot">"</span>]</span>
+<span id="cb3-53"><a href="#cb3-53" aria-hidden="true" tabindex="-1"></a>  I --&gt; J</span>
+<span id="cb3-54"><a href="#cb3-54" aria-hidden="true" tabindex="-1"></a>  Q --&gt; J</span>
+<span id="cb3-55"><a href="#cb3-55" aria-hidden="true" tabindex="-1"></a>  H --&gt; N[<span class="ot">"</span><span class="st">9. MLOps&lt;br/&gt;registro, API, monitoreo</span><span class="ot">"</span>]</span>
+<span id="cb3-56"><a href="#cb3-56" aria-hidden="true" tabindex="-1"></a>  N --&gt; K[<span class="ot">"</span><span class="st">10. Despliegue&lt;br/&gt;PostgreSQL</span><span class="ot">"</span>]</span>
+<span id="cb3-57"><a href="#cb3-57" aria-hidden="true" tabindex="-1"></a>  E --&gt; L[<span class="ot">"</span><span class="st">11. Datos abiertos&lt;br/&gt;Zenodo (DOI)</span><span class="ot">"</span>]</span>
+<span id="cb3-58"><a href="#cb3-58" aria-hidden="true" tabindex="-1"></a>  N --&gt; M[<span class="ot">"</span><span class="st">Código&lt;br/&gt;GitHub + Actions</span><span class="ot">"</span>]</span>
+<span id="cb3-59"><a href="#cb3-59" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb3-60"><a href="#cb3-60" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-61"><a href="#cb3-61" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Etapa <span class="pp">|</span> Página <span class="pp">|</span> Entrada <span class="pp">|</span> Salida <span class="pp">|</span></span>
+<span id="cb3-62"><a href="#cb3-62" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---|---|---|</span></span>
+<span id="cb3-63"><a href="#cb3-63" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 1. Integración <span class="pp">|</span> <span class="in">`01-integracion.qmd`</span> <span class="pp">|</span> <span class="in">`datos/raw/`</span> (CSV del INEI) <span class="pp">|</span> <span class="in">`datos/interim/enaho_unida_AAAA.rds`</span> <span class="pp">|</span></span>
+<span id="cb3-64"><a href="#cb3-64" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 2. Limpieza <span class="pp">|</span> <span class="in">`02-limpieza.qmd`</span> <span class="pp">|</span> <span class="in">`datos/interim/`</span> <span class="pp">|</span> <span class="in">`datos/processed/base_modelo.csv.gz`</span> <span class="pp">|</span></span>
+<span id="cb3-65"><a href="#cb3-65" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 3. Exploración <span class="pp">|</span> <span class="in">`03-exploracion.qmd`</span> <span class="pp">|</span> <span class="in">`base_modelo`</span> <span class="pp">|</span> gráficos descriptivos <span class="pp">|</span></span>
+<span id="cb3-66"><a href="#cb3-66" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 4. Modelado <span class="pp">|</span> <span class="in">`04-modelado.qmd`</span> <span class="pp">|</span> <span class="in">`base_modelo`</span> <span class="pp">|</span> <span class="in">`outputs/`</span> (métricas, predicciones, coeficientes) <span class="pp">|</span></span>
+<span id="cb3-67"><a href="#cb3-67" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 5. Validación <span class="pp">|</span> <span class="in">`05-validacion.qmd`</span> <span class="pp">|</span> <span class="in">`outputs/`</span> <span class="pp">|</span> comparación de modelos <span class="pp">|</span></span>
+<span id="cb3-68"><a href="#cb3-68" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 6. Interpretabilidad <span class="pp">|</span> <span class="in">`06-interpretabilidad.qmd`</span> <span class="pp">|</span> <span class="in">`outputs/`</span> <span class="pp">|</span> efectos e importancia de variables <span class="pp">|</span></span>
+<span id="cb3-69"><a href="#cb3-69" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 7. Heckman bietápico <span class="pp">|</span> <span class="in">`07-heckman.qmd`</span> <span class="pp">|</span> <span class="in">`datos/interim/`</span>, <span class="in">`base_modelo`</span> <span class="pp">|</span> <span class="in">`base_seleccion.csv.gz`</span>, λ, coeficientes corregidos <span class="pp">|</span></span>
+<span id="cb3-70"><a href="#cb3-70" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 8. Heterogeneidad <span class="pp">|</span> <span class="in">`08-regiones.qmd`</span> <span class="pp">|</span> <span class="in">`base_modelo`</span>, λ, <span class="in">`datos/interim/`</span> <span class="pp">|</span> <span class="in">`base_contexto.csv.gz`</span>, resultados ponderados, efectos y modelos por segmento <span class="pp">|</span></span>
+<span id="cb3-71"><a href="#cb3-71" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 9. MLOps <span class="pp">|</span> <span class="in">`09-mlops.qmd`</span> <span class="pp">|</span> <span class="in">`base_modelo`</span>, mejor modelo <span class="pp">|</span> registro de modelos con versiones, API, monitoreo por año <span class="pp">|</span></span>
+<span id="cb3-72"><a href="#cb3-72" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 10. Despliegue <span class="pp">|</span> <span class="in">`10-despliegue.qmd`</span> <span class="pp">|</span> <span class="in">`base_modelo`</span>, <span class="in">`outputs/`</span> <span class="pp">|</span> tablas en PostgreSQL <span class="pp">|</span></span>
+<span id="cb3-73"><a href="#cb3-73" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 11. Disponibilidad de datos <span class="pp">|</span> <span class="in">`11-disponibilidad-datos.qmd`</span> <span class="pp">|</span> — <span class="pp">|</span> GitHub (código) y Zenodo (datos, DOI) <span class="pp">|</span></span>
+<span id="cb3-74"><a href="#cb3-74" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Dashboard <span class="pp">|</span> <span class="in">`dashboard.qmd`</span> <span class="pp">|</span> <span class="in">`outputs/`</span> <span class="pp">|</span> tablero de resultados <span class="pp">|</span></span>
+<span id="cb3-75"><a href="#cb3-75" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-76"><a href="#cb3-76" aria-hidden="true" tabindex="-1"></a><span class="fu">## Estructura de carpetas</span></span>
+<span id="cb3-77"><a href="#cb3-77" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-78"><a href="#cb3-78" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb3-79"><a href="#cb3-79" aria-hidden="true" tabindex="-1"></a><span class="in">enaho-regresion-multivariada/</span></span>
+<span id="cb3-80"><a href="#cb3-80" aria-hidden="true" tabindex="-1"></a><span class="in">├── _quarto.yml               configuración del proyecto Quarto</span></span>
+<span id="cb3-81"><a href="#cb3-81" aria-hidden="true" tabindex="-1"></a><span class="in">├── index.qmd ... 11-*.qmd    etapas del pipeline</span></span>
+<span id="cb3-82"><a href="#cb3-82" aria-hidden="true" tabindex="-1"></a><span class="in">├── dashboard.qmd             tablero de resultados</span></span>
+<span id="cb3-83"><a href="#cb3-83" aria-hidden="true" tabindex="-1"></a><span class="in">├── R/                        funciones reutilizables</span></span>
+<span id="cb3-84"><a href="#cb3-84" aria-hidden="true" tabindex="-1"></a><span class="in">│   ├── 00_config.R           rutas, semilla y parámetros</span></span>
+<span id="cb3-85"><a href="#cb3-85" aria-hidden="true" tabindex="-1"></a><span class="in">│   ├── 01_funciones_integracion.R</span></span>
+<span id="cb3-86"><a href="#cb3-86" aria-hidden="true" tabindex="-1"></a><span class="in">│   ├── 02_funciones_limpieza.R</span></span>
+<span id="cb3-87"><a href="#cb3-87" aria-hidden="true" tabindex="-1"></a><span class="in">│   ├── 03_funciones_modelado.R</span></span>
+<span id="cb3-88"><a href="#cb3-88" aria-hidden="true" tabindex="-1"></a><span class="in">│   ├── 04_funciones_econometria.R</span></span>
+<span id="cb3-89"><a href="#cb3-89" aria-hidden="true" tabindex="-1"></a><span class="in">│   ├── 05_funciones_segmentacion.R</span></span>
+<span id="cb3-90"><a href="#cb3-90" aria-hidden="true" tabindex="-1"></a><span class="in">│   └── instalar_paquetes.R</span></span>
+<span id="cb3-91"><a href="#cb3-91" aria-hidden="true" tabindex="-1"></a><span class="in">├── datos/</span></span>
+<span id="cb3-92"><a href="#cb3-92" aria-hidden="true" tabindex="-1"></a><span class="in">│   ├── raw/                  CSV originales del INEI   (no se suben a GitHub)</span></span>
+<span id="cb3-93"><a href="#cb3-93" aria-hidden="true" tabindex="-1"></a><span class="in">│   ├── interim/              base unida por año        (no se sube a GitHub)</span></span>
+<span id="cb3-94"><a href="#cb3-94" aria-hidden="true" tabindex="-1"></a><span class="in">│   └── processed/            base_modelo               (se publica en Zenodo)</span></span>
+<span id="cb3-95"><a href="#cb3-95" aria-hidden="true" tabindex="-1"></a><span class="in">├── outputs/                  tablas, figuras y registro de modelos</span></span>
+<span id="cb3-96"><a href="#cb3-96" aria-hidden="true" tabindex="-1"></a><span class="in">├── api/                      APIs de predicción (plumber) generadas por vetiver</span></span>
+<span id="cb3-97"><a href="#cb3-97" aria-hidden="true" tabindex="-1"></a><span class="in">├── .github/workflows/        publicación automática (GitHub Actions)</span></span>
+<span id="cb3-98"><a href="#cb3-98" aria-hidden="true" tabindex="-1"></a><span class="in">├── imagenes/                 logo</span></span>
+<span id="cb3-99"><a href="#cb3-99" aria-hidden="true" tabindex="-1"></a><span class="in">├── docs/                     sitio web generado        (GitHub Pages)</span></span>
+<span id="cb3-100"><a href="#cb3-100" aria-hidden="true" tabindex="-1"></a><span class="in">├── README.md</span></span>
+<span id="cb3-101"><a href="#cb3-101" aria-hidden="true" tabindex="-1"></a><span class="in">├── LISTA_REPRODUCIBILIDAD.md</span></span>
+<span id="cb3-102"><a href="#cb3-102" aria-hidden="true" tabindex="-1"></a><span class="in">└── CITATION.cff</span></span>
+<span id="cb3-103"><a href="#cb3-103" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb3-104"><a href="#cb3-104" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-105"><a href="#cb3-105" aria-hidden="true" tabindex="-1"></a><span class="fu">## Cómo reproducir</span></span>
+<span id="cb3-106"><a href="#cb3-106" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-107"><a href="#cb3-107" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>Clonar el repositorio de GitHub.</span>
+<span id="cb3-108"><a href="#cb3-108" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>Instalar los paquetes: <span class="in">`source("R/instalar_paquetes.R")`</span> o, mejor, <span class="in">`renv::restore()`</span> para obtener las mismas versiones.</span>
+<span id="cb3-109"><a href="#cb3-109" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>Obtener los datos, de una de estas dos formas:</span>
+<span id="cb3-110"><a href="#cb3-110" aria-hidden="true" tabindex="-1"></a><span class="ss">   - </span>**Desde cero:** descargar los módulos 200, 300 y 500 de 2014 a 2025 del portal de microdatos del INEI y copiarlos en <span class="in">`datos/raw/`</span>.</span>
+<span id="cb3-111"><a href="#cb3-111" aria-hidden="true" tabindex="-1"></a><span class="ss">   - </span>**Directo al modelo:** descargar <span class="in">`base_modelo.csv.gz`</span> desde Zenodo (ver <span class="co">[</span><span class="ot">Disponibilidad de datos</span><span class="co">](11-disponibilidad-datos.qmd)</span>) y copiarlo en <span class="in">`datos/processed/`</span>. Las etapas 1 y 2 se saltan solas.</span>
+<span id="cb3-112"><a href="#cb3-112" aria-hidden="true" tabindex="-1"></a><span class="ss">4. </span>En la terminal, dentro de la carpeta del proyecto: <span class="in">`quarto render`</span>.</span>
 </code></pre></div><button title="Copiar al portapapeles" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->

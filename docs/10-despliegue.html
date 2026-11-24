@@ -8,7 +8,7 @@
 
 <meta name="description" content="Carga de la base del modelo y de los resultados en PostgreSQL">
 
-<title>8. Despliegue en un sistema de gestión de datos – Regresión multivariada ENAHO 2014–2025</title>
+<title>10. Despliegue en un sistema de gestión de datos – Regresión multivariada ENAHO 2014–2025</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -123,7 +123,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Alternar barra lateral" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="Hilo de Ariadna"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./07-mlops.html">MLOps y datos abiertos</a></li><li class="breadcrumb-item"><a href="./08-despliegue.html">8. Despliegue</a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="Hilo de Ariadna"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./09-mlops.html">MLOps y datos abiertos</a></li><li class="breadcrumb-item"><a href="./10-despliegue.html">10. Despliegue</a></li></ol></nav>
         <a class="flex-grow-1" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
       <button type="button" class="btn quarto-search-button" aria-label="Buscar" onclick="window.quartoOpenSearch();">
@@ -210,25 +210,45 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
             <button type="button" class="sidebar-item-text sidebar-item-toggle sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" aria-controls="quarto-sidebar-section-3" aria-expanded="true">
- <span class="menu-text" id="quarto-sidebar-section-3-label">MLOps y datos abiertos</span><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
+ <span class="menu-text" id="quarto-sidebar-section-3-label">Análisis econométrico</span><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
       </div>
       <ul id="quarto-sidebar-section-3" aria-labelledby="quarto-sidebar-section-3-label" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./07-mlops.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">7. MLOps</span></a>
+  <a href="./07-heckman.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">7. Heckman bietápico</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./08-despliegue.html" class="sidebar-item-text sidebar-link active">
- <span class="menu-text">8. Despliegue</span></a>
+  <a href="./08-regiones.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">8. Heterogeneidad</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <button type="button" class="sidebar-item-text sidebar-item-toggle sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" aria-controls="quarto-sidebar-section-4" aria-expanded="true">
+ <span class="menu-text" id="quarto-sidebar-section-4-label">MLOps y datos abiertos</span><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
+      </div>
+      <ul id="quarto-sidebar-section-4" aria-labelledby="quarto-sidebar-section-4-label" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./09-mlops.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">9. MLOps</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./09-disponibilidad-datos.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">9. Disponibilidad de datos</span></a>
+  <a href="./10-despliegue.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text">10. Despliegue</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./11-disponibilidad-datos.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">11. Disponibilidad de datos</span></a>
   </div>
 </li>
       </ul>
@@ -249,18 +269,18 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">En esta página</h2>
    
   <ul>
-  <li><a href="#credenciales-fuera-del-código" id="toc-credenciales-fuera-del-código" class="nav-link active" data-scroll-target="#credenciales-fuera-del-código">8.1 Credenciales fuera del código</a></li>
-  <li><a href="#tablas-que-se-publican" id="toc-tablas-que-se-publican" class="nav-link" data-scroll-target="#tablas-que-se-publican">8.2 Tablas que se publican</a></li>
-  <li><a href="#siguiente-paso-despliegue-en-la-nube" id="toc-siguiente-paso-despliegue-en-la-nube" class="nav-link" data-scroll-target="#siguiente-paso-despliegue-en-la-nube">8.3 Siguiente paso: despliegue en la nube</a></li>
+  <li><a href="#credenciales-fuera-del-código" id="toc-credenciales-fuera-del-código" class="nav-link active" data-scroll-target="#credenciales-fuera-del-código">10.1 Credenciales fuera del código</a></li>
+  <li><a href="#tablas-que-se-publican" id="toc-tablas-que-se-publican" class="nav-link" data-scroll-target="#tablas-que-se-publican">10.2 Tablas que se publican</a></li>
+  <li><a href="#siguiente-paso-despliegue-en-la-nube" id="toc-siguiente-paso-despliegue-en-la-nube" class="nav-link" data-scroll-target="#siguiente-paso-despliegue-en-la-nube">10.3 Siguiente paso: despliegue en la nube</a></li>
   </ul>
-<div class="toc-actions"><ul><li><a href="https://github.com/joe-cru-77/enaho-regresion-multivariada/blob/main/08-despliegue.qmd" class="toc-action"><i class="bi bi-github"></i>Ver el código</a></li><li><a href="https://github.com/joe-cru-77/enaho-regresion-multivariada/issues/new" class="toc-action"><i class="bi empty"></i>Informar sobre problema</a></li></ul></div></nav>
+<div class="toc-actions"><ul><li><a href="https://github.com/joe-cru-77/enaho-regresion-multivariada/blob/main/10-despliegue.qmd" class="toc-action"><i class="bi bi-github"></i>Ver el código</a></li><li><a href="https://github.com/joe-cru-77/enaho-regresion-multivariada/issues/new" class="toc-action"><i class="bi empty"></i>Informar sobre problema</a></li></ul></div></nav>
     </div>
 <!-- main -->
 <main class="content" id="quarto-document-content" tabindex="-1">
 
-<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="Hilo de Ariadna"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./07-mlops.html">MLOps y datos abiertos</a></li><li class="breadcrumb-item"><a href="./08-despliegue.html">8. Despliegue</a></li></ol></nav>
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="Hilo de Ariadna"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./09-mlops.html">MLOps y datos abiertos</a></li><li class="breadcrumb-item"><a href="./10-despliegue.html">10. Despliegue</a></li></ol></nav>
 <div class="quarto-title">
-<div class="quarto-title-block"><div><h1 class="title">8. Despliegue en un sistema de gestión de datos</h1><button type="button" class="btn code-tools-button dropdown-toggle" id="quarto-code-tools-menu" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi"></i> Código</button><ul class="dropdown-menu dropdown-menu-end" aria-labelelledby="quarto-code-tools-menu"><li><a id="quarto-show-all-code" class="dropdown-item" href="javascript:void(0)" role="button">Mostrar todo el código</a></li><li><a id="quarto-hide-all-code" class="dropdown-item" href="javascript:void(0)" role="button">Ocultar todo el código</a></li><li><hr class="dropdown-divider"></li><li><a id="quarto-view-source" class="dropdown-item" href="javascript:void(0)" role="button">Ver el código fuente</a></li></ul></div></div>
+<div class="quarto-title-block"><div><h1 class="title">10. Despliegue en un sistema de gestión de datos</h1><button type="button" class="btn code-tools-button dropdown-toggle" id="quarto-code-tools-menu" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi"></i> Código</button><ul class="dropdown-menu dropdown-menu-end" aria-labelelledby="quarto-code-tools-menu"><li><a id="quarto-show-all-code" class="dropdown-item" href="javascript:void(0)" role="button">Mostrar todo el código</a></li><li><a id="quarto-hide-all-code" class="dropdown-item" href="javascript:void(0)" role="button">Ocultar todo el código</a></li><li><hr class="dropdown-divider"></li><li><a id="quarto-view-source" class="dropdown-item" href="javascript:void(0)" role="button">Ver el código fuente</a></li></ul></div></div>
 </div>
 
 <div>
@@ -284,7 +304,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <p>Para que otros sistemas (un dashboard en línea, una API o un análisis en SQL) puedan usar los resultados, el pipeline los publica en un <strong>sistema de gestión de bases de datos</strong>: PostgreSQL.</p>
 <section id="credenciales-fuera-del-código" class="level2">
-<h2 class="anchored" data-anchor-id="credenciales-fuera-del-código">8.1 Credenciales fuera del código</h2>
+<h2 class="anchored" data-anchor-id="credenciales-fuera-del-código">10.1 Credenciales fuera del código</h2>
 <p>La contraseña <strong>nunca</strong> se escribe en el código, porque el código se sube a GitHub. Se guarda en el archivo <code>.Renviron</code> de la carpeta del proyecto, que está en <code>.gitignore</code>:</p>
 <pre><code>PGHOST=localhost
 PGPORT=5432
@@ -315,7 +335,7 @@ PGDATABASE=enaho</code></pre>
 </div>
 </section>
 <section id="tablas-que-se-publican" class="level2">
-<h2 class="anchored" data-anchor-id="tablas-que-se-publican">8.2 Tablas que se publican</h2>
+<h2 class="anchored" data-anchor-id="tablas-que-se-publican">10.2 Tablas que se publican</h2>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 50%">
@@ -380,7 +400,7 @@ PGDATABASE=enaho</code></pre>
 </div>
 </section>
 <section id="siguiente-paso-despliegue-en-la-nube" class="level2">
-<h2 class="anchored" data-anchor-id="siguiente-paso-despliegue-en-la-nube">8.3 Siguiente paso: despliegue en la nube</h2>
+<h2 class="anchored" data-anchor-id="siguiente-paso-despliegue-en-la-nube">10.3 Siguiente paso: despliegue en la nube</h2>
 <p>La misma etapa sirve para un servidor PostgreSQL en la nube (por ejemplo, el de la universidad o un servicio gestionado): solo cambian los valores de <code>PGHOST</code>, <code>PGUSER</code> y <code>PGPASSWORD</code> en <code>.Renviron</code>. El código no se modifica.</p>
 
 
@@ -917,7 +937,7 @@ PGDATABASE=enaho</code></pre>
   window.quartoScrollableRegionsLabels = {"code":"Código desplazable","output":"Salida desplazable"};
   </script><div class="modal fade" id="quarto-embedded-source-code-modal" tabindex="-1" aria-labelledby="quarto-embedded-source-code-modal-label" aria-hidden="true"><div class="modal-dialog modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="quarto-embedded-source-code-modal-label">Ejecutar el código</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="an">title:</span><span class="co"> "8. Despliegue en un sistema de gestión de datos"</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="an">title:</span><span class="co"> "10. Despliegue en un sistema de gestión de datos"</span></span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="an">description:</span><span class="co"> "Carga de la base del modelo y de los resultados en PostgreSQL"</span></span>
 <span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
 <span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a></span>
@@ -930,7 +950,7 @@ PGDATABASE=enaho</code></pre>
 <span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>Para que otros sistemas (un dashboard en línea, una API o un análisis en SQL) puedan usar los resultados, el pipeline los publica en un **sistema de gestión de bases de datos**: PostgreSQL.</span>
 <span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a><span class="fu">## 8.1 Credenciales fuera del código</span></span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a><span class="fu">## 10.1 Credenciales fuera del código</span></span>
 <span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>La contraseña **nunca** se escribe en el código, porque el código se sube a GitHub. Se guarda en el archivo <span class="in">`.Renviron`</span> de la carpeta del proyecto, que está en <span class="in">`.gitignore`</span>:</span>
 <span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a></span>
@@ -961,7 +981,7 @@ PGDATABASE=enaho</code></pre>
 <span id="cb5-47"><a href="#cb5-47" aria-hidden="true" tabindex="-1"></a>}</span>
 <span id="cb5-48"><a href="#cb5-48" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb5-49"><a href="#cb5-49" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-50"><a href="#cb5-50" aria-hidden="true" tabindex="-1"></a><span class="fu">## 8.2 Tablas que se publican</span></span>
+<span id="cb5-50"><a href="#cb5-50" aria-hidden="true" tabindex="-1"></a><span class="fu">## 10.2 Tablas que se publican</span></span>
 <span id="cb5-51"><a href="#cb5-51" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb5-52"><a href="#cb5-52" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Tabla <span class="pp">|</span> Contenido <span class="pp">|</span></span>
 <span id="cb5-53"><a href="#cb5-53" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---|</span></span>
@@ -998,7 +1018,7 @@ PGDATABASE=enaho</code></pre>
 <span id="cb5-86"><a href="#cb5-86" aria-hidden="true" tabindex="-1"></a>}</span>
 <span id="cb5-87"><a href="#cb5-87" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb5-88"><a href="#cb5-88" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-89"><a href="#cb5-89" aria-hidden="true" tabindex="-1"></a><span class="fu">## 8.3 Siguiente paso: despliegue en la nube</span></span>
+<span id="cb5-89"><a href="#cb5-89" aria-hidden="true" tabindex="-1"></a><span class="fu">## 10.3 Siguiente paso: despliegue en la nube</span></span>
 <span id="cb5-90"><a href="#cb5-90" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb5-91"><a href="#cb5-91" aria-hidden="true" tabindex="-1"></a>La misma etapa sirve para un servidor PostgreSQL en la nube (por ejemplo, el de la universidad o un servicio gestionado): solo cambian los valores de <span class="in">`PGHOST`</span>, <span class="in">`PGUSER`</span> y <span class="in">`PGPASSWORD`</span> en <span class="in">`.Renviron`</span>. El código no se modifica.</span>
 </code></pre></div><button title="Copiar al portapapeles" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
@@ -1011,7 +1031,7 @@ PGDATABASE=enaho</code></pre>
     </div>   
     <div class="nav-footer-center">
 <p>Universidad Nacional del Altiplano – Puno · Ingeniería Estadística e Informática</p>
-<div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/joe-cru-77/enaho-regresion-multivariada/blob/main/08-despliegue.qmd" class="toc-action"><i class="bi bi-github"></i>Ver el código</a></li><li><a href="https://github.com/joe-cru-77/enaho-regresion-multivariada/issues/new" class="toc-action"><i class="bi empty"></i>Informar sobre problema</a></li></ul></div></div>
+<div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/joe-cru-77/enaho-regresion-multivariada/blob/main/10-despliegue.qmd" class="toc-action"><i class="bi bi-github"></i>Ver el código</a></li><li><a href="https://github.com/joe-cru-77/enaho-regresion-multivariada/issues/new" class="toc-action"><i class="bi empty"></i>Informar sobre problema</a></li></ul></div></div>
     <div class="nav-footer-right">
       &nbsp;
     </div>

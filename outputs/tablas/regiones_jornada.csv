@@ -1,0 +1,13 @@
+region,jornada,proporcion
+costa,Menos de 35 h,0.2526184778522239
+costa,35 a 48 h,0.4743903141177882
+costa,Más de 48 h,0.27299120802998794
+lima_metropolitana,Menos de 35 h,0.16309516142386163
+lima_metropolitana,35 a 48 h,0.544815934751292
+lima_metropolitana,Más de 48 h,0.2920889038248465
+selva,Menos de 35 h,0.2894173280532341
+selva,35 a 48 h,0.4654625022339716
+selva,Más de 48 h,0.24512016971279416
+sierra,Menos de 35 h,0.3147506702330221
+sierra,35 a 48 h,0.44365261543491413
+sierra,Más de 48 h,0.24159671433206376

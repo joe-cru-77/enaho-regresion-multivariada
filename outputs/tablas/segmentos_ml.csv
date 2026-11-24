@@ -1,0 +1,73 @@
+objetivo,segmento,enfoque,metrica,valor,tipo_segmento
+y1_ln_ingreso_mensual,costa,Un modelo para el Perú,rmse,0.5452768474322849,region
+y1_ln_ingreso_mensual,costa,Un modelo por segmento,rmse,0.5445561586045317,region
+y1_ln_ingreso_mensual,costa,Un modelo para el Perú,rsq,0.5422000054161022,region
+y1_ln_ingreso_mensual,costa,Un modelo por segmento,rsq,0.5448051062554519,region
+y1_ln_ingreso_mensual,costa,Un modelo para el Perú,mae,0.39602468466004126,region
+y1_ln_ingreso_mensual,costa,Un modelo por segmento,mae,0.39386497888268085,region
+y1_ln_ingreso_mensual,lima_metropolitana,Un modelo para el Perú,rmse,0.5020661047095596,region
+y1_ln_ingreso_mensual,lima_metropolitana,Un modelo por segmento,rmse,0.49650023561159035,region
+y1_ln_ingreso_mensual,lima_metropolitana,Un modelo para el Perú,rsq,0.5427599456781584,region
+y1_ln_ingreso_mensual,lima_metropolitana,Un modelo por segmento,rsq,0.550049825929327,region
+y1_ln_ingreso_mensual,lima_metropolitana,Un modelo para el Perú,mae,0.36924547426356025,region
+y1_ln_ingreso_mensual,lima_metropolitana,Un modelo por segmento,mae,0.36360245031884825,region
+y1_ln_ingreso_mensual,selva,Un modelo para el Perú,rmse,0.5983389852778715,region
+y1_ln_ingreso_mensual,selva,Un modelo por segmento,rmse,0.597672109106812,region
+y1_ln_ingreso_mensual,selva,Un modelo para el Perú,rsq,0.5937458997066227,region
+y1_ln_ingreso_mensual,selva,Un modelo por segmento,rsq,0.5944630984252759,region
+y1_ln_ingreso_mensual,selva,Un modelo para el Perú,mae,0.43115690361630166,region
+y1_ln_ingreso_mensual,selva,Un modelo por segmento,mae,0.4319452069410142,region
+y1_ln_ingreso_mensual,sierra,Un modelo para el Perú,rmse,0.6444848109960953,region
+y1_ln_ingreso_mensual,sierra,Un modelo por segmento,rmse,0.6414788274516101,region
+y1_ln_ingreso_mensual,sierra,Un modelo para el Perú,rsq,0.6338093200575722,region
+y1_ln_ingreso_mensual,sierra,Un modelo por segmento,rsq,0.6368093393087619,region
+y1_ln_ingreso_mensual,sierra,Un modelo para el Perú,mae,0.4671247686930562,region
+y1_ln_ingreso_mensual,sierra,Un modelo por segmento,mae,0.46676754236932394,region
+y2_horas_semanales,costa,Un modelo para el Perú,rmse,14.750940563573936,region
+y2_horas_semanales,costa,Un modelo por segmento,rmse,14.732935319065444,region
+y2_horas_semanales,costa,Un modelo para el Perú,rsq,0.22737081696941705,region
+y2_horas_semanales,costa,Un modelo por segmento,rsq,0.2292854856229394,region
+y2_horas_semanales,costa,Un modelo para el Perú,mae,10.890119106840285,region
+y2_horas_semanales,costa,Un modelo por segmento,mae,10.896127411118487,region
+y2_horas_semanales,lima_metropolitana,Un modelo para el Perú,rmse,13.106709847202048,region
+y2_horas_semanales,lima_metropolitana,Un modelo por segmento,rmse,13.068209012891499,region
+y2_horas_semanales,lima_metropolitana,Un modelo para el Perú,rsq,0.17047595197053503,region
+y2_horas_semanales,lima_metropolitana,Un modelo por segmento,rsq,0.17621415560667314,region
+y2_horas_semanales,lima_metropolitana,Un modelo para el Perú,mae,9.499884312148433,region
+y2_horas_semanales,lima_metropolitana,Un modelo por segmento,mae,9.419388745955155,region
+y2_horas_semanales,selva,Un modelo para el Perú,rmse,14.561916341914822,region
+y2_horas_semanales,selva,Un modelo por segmento,rmse,14.513352400683235,region
+y2_horas_semanales,selva,Un modelo para el Perú,rsq,0.24093348305456697,region
+y2_horas_semanales,selva,Un modelo por segmento,rsq,0.24554252308052266,region
+y2_horas_semanales,selva,Un modelo para el Perú,mae,10.83861029129155,region
+y2_horas_semanales,selva,Un modelo por segmento,mae,10.76368448617936,region
+y2_horas_semanales,sierra,Un modelo para el Perú,rmse,15.056207075060401,region
+y2_horas_semanales,sierra,Un modelo por segmento,rmse,14.993295138314247,region
+y2_horas_semanales,sierra,Un modelo para el Perú,rsq,0.2747697606393358,region
+y2_horas_semanales,sierra,Un modelo por segmento,rsq,0.2809093168049656,region
+y2_horas_semanales,sierra,Un modelo para el Perú,mae,11.236367779624556,region
+y2_horas_semanales,sierra,Un modelo por segmento,mae,11.188938662752289,region
+y1_ln_ingreso_mensual,Grupo 1,Un modelo para el Perú,rmse,0.5404021715133714,grupo
+y1_ln_ingreso_mensual,Grupo 1,Un modelo por segmento,rmse,0.541509680075625,grupo
+y1_ln_ingreso_mensual,Grupo 1,Un modelo para el Perú,rsq,0.5727386640726395,grupo
+y1_ln_ingreso_mensual,Grupo 1,Un modelo por segmento,rsq,0.5709406073079349,grupo
+y1_ln_ingreso_mensual,Grupo 1,Un modelo para el Perú,mae,0.3946498514865349,grupo
+y1_ln_ingreso_mensual,Grupo 1,Un modelo por segmento,mae,0.39261419919116497,grupo
+y1_ln_ingreso_mensual,Grupo 2,Un modelo para el Perú,rmse,0.6456340241729772,grupo
+y1_ln_ingreso_mensual,Grupo 2,Un modelo por segmento,rmse,0.640428228162239,grupo
+y1_ln_ingreso_mensual,Grupo 2,Un modelo para el Perú,rsq,0.6159772782923576,grupo
+y1_ln_ingreso_mensual,Grupo 2,Un modelo por segmento,rsq,0.6179854517559653,grupo
+y1_ln_ingreso_mensual,Grupo 2,Un modelo para el Perú,mae,0.46382558892253023,grupo
+y1_ln_ingreso_mensual,Grupo 2,Un modelo por segmento,mae,0.4656706549786757,grupo
+y2_horas_semanales,Grupo 1,Un modelo para el Perú,rmse,14.29927270611129,grupo
+y2_horas_semanales,Grupo 1,Un modelo por segmento,rmse,14.323694535010427,grupo
+y2_horas_semanales,Grupo 1,Un modelo para el Perú,rsq,0.22677267368543305,grupo
+y2_horas_semanales,Grupo 1,Un modelo por segmento,rsq,0.22437754292008416,grupo
+y2_horas_semanales,Grupo 1,Un modelo para el Perú,mae,10.488680822171277,grupo
+y2_horas_semanales,Grupo 1,Un modelo por segmento,mae,10.518504679692027,grupo
+y2_horas_semanales,Grupo 2,Un modelo para el Perú,rmse,14.983524085390671,grupo
+y2_horas_semanales,Grupo 2,Un modelo por segmento,rmse,14.920178932183184,grupo
+y2_horas_semanales,Grupo 2,Un modelo para el Perú,rsq,0.2502776506937237,grupo
+y2_horas_semanales,Grupo 2,Un modelo por segmento,rsq,0.2555524808585367,grupo
+y2_horas_semanales,Grupo 2,Un modelo para el Perú,mae,11.229406792788204,grupo
+y2_horas_semanales,Grupo 2,Un modelo por segmento,mae,11.187018165315937,grupo
